@@ -1,34 +1,32 @@
 # Etapa 1: Build
 FROM node:18-alpine AS builder
 
-# Crear directorio de la app
 WORKDIR /app
 
-# Copiar dependencias
-COPY package.json package-lock.json ./
-
 # Instalar dependencias
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Copiar el resto del proyecto
+# Instalar herramientas de compilación (por si alguna dependencia lo requiere)
+RUN apk add --no-cache python3 make g++
+
+# Copiar el resto del código
 COPY . .
 
-# Compilar la app de Next.js
+# Compilar Next.js
 RUN npm run build
 
-# Etapa 2: Imagen de producción
+# Etapa 2: Producción
 FROM node:18-alpine AS runner
 
 WORKDIR /app
 
-# Copiar solo lo necesario de la etapa anterior
-COPY --from=builder /app/package.json ./
+# Copiar lo necesario desde la etapa builder
+COPY --from=builder /app/package.json ./ 
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
 
-# Puerto de Next.js
 EXPOSE 3000
 
-# Comando para arrancar Next.js en modo producción
 CMD ["npm", "run", "start"]
