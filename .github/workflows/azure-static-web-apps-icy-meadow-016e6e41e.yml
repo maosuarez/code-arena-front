@@ -13,13 +13,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Log in to Azure
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CLIENT_CRED }}
-
-      - name: Log in to ACR
-        run: az acr login --name ${{ secrets.AZURE_ACR_NAME }}
+      - name: Log in to ACR with token
+        run: echo ${{ secrets.ACR_TOKEN_PASSWORD }} | docker login ${{ secrets.AZURE_ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_TOKEN_USERNAME }} --password-stdin
 
       - name: Build Docker image
         run: docker build . -t ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/my-next-app:${{ github.sha }}
