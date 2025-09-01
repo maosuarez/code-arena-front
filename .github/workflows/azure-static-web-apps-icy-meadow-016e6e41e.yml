@@ -17,7 +17,8 @@ jobs:
         run: echo ${{ secrets.ACR_TOKEN_PASSWORD }} | docker login ${{ secrets.AZURE_ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_TOKEN_USERNAME }} --password-stdin
 
       - name: Build Docker image
-        run: docker build . -t ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/my-next-app:${{ github.sha }}
+        run: docker build . -t ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/code-arena:${{ github.sha }}
 
       - name: Push Docker image
-        run: docker push ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/my-next-app:${{ github.sha }}
+        run: docker push ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/code-arena:${{ github.sha }}
+
