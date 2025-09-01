@@ -23,6 +23,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
     e.preventDefault()
     setIsLoading(true)
     // Simulate API call
+    alert(e)
     await new Promise((resolve) => setTimeout(resolve, 1000))
     setIsLoading(false)
     onOpenChange(false)

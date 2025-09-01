@@ -24,8 +24,25 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+
+type Team = {
+  id: number;
+  name: string;
+  avatar: string; // Emoji o URL
+  color: string; // Puede usarse para temas visuales
+  members: string[]; // Lista de nombres completos
+  points: number; // Puntos acumulados
+  solves: number; // Problemas resueltos
+  totalTime: string; // Formato HH:MM:SS
+  lastSolve: string; // Nombre del último problema resuelto
+  lastSolveTime: string; // Tiempo en que se resolvió el último problema
+  penalties: number; // Penalizaciones acumuladas
+  achievements: string[]; // Identificadores de logros
+  isLastSolver: boolean; // Si fue el último equipo en resolver
+};
+
 // Mock data for teams
-const teamsData = [
+const teamsData: Array<Team> = [
   {
     id: 1,
     name: "Los Algoritmos Supremos",
@@ -103,8 +120,22 @@ const teamsData = [
   },
 ]
 
+type Participant = {
+  id: number;
+  name: string; // Nombre completo del participante
+  team: string; // Nombre del equipo al que pertenece
+  avatar: string; // Iniciales, emoji o identificador visual
+  points: number; // Puntos individuales acumulados
+  solves: number; // Problemas resueltos por el participante
+  totalTime: string; // Tiempo total invertido (HH:MM:SS)
+  lastSolve: string; // Último problema resuelto
+  lastSolveTime: string; // Tiempo en que se resolvió el último problema
+  achievements: string[]; // Logros individuales
+};
+
+
 // Mock data for individual ranking
-const individualsData = [
+const individualsData: Array<Participant> = [
   {
     id: 1,
     name: "Ana García",
@@ -176,6 +207,9 @@ const achievements = {
 }
 
 export default function RankingPage({ params }: { params: { id: string } }) {
+
+  console.log(params)
+
   const [viewMode, setViewMode] = useState<"teams" | "individual">("teams")
   const [showMedals, setShowMedals] = useState(true)
   const [soundEnabled, setSoundEnabled] = useState(true)
@@ -362,7 +396,7 @@ export default function RankingPage({ params }: { params: { id: string } }) {
                   key={item.id}
                   className={cn(
                     "transition-all duration-500 border-l-4",
-                    isTeam ? getTeamColorClass((item as any).color) : "border-l-accent bg-accent/5",
+                    isTeam ? getTeamColorClass((item as Team).color) : "border-l-accent bg-accent/5",
                     isHighlighted && "animate-pulse ring-2 ring-accent shadow-lg scale-[1.02]",
                     presentationMode && "text-lg",
                   )}
@@ -375,23 +409,23 @@ export default function RankingPage({ params }: { params: { id: string } }) {
 
                         <div className="flex items-center gap-3">
                           <div className={cn("text-2xl", presentationMode && "text-4xl")}>
-                            {isTeam ? (item as any).avatar : ""}
+                            {isTeam ? (item as Team | Participant).avatar : ""}
                           </div>
                           {!isTeam && (
                             <Avatar className={cn("h-10 w-10", presentationMode && "h-12 w-12")}>
-                              <AvatarFallback>{(item as any).avatar}</AvatarFallback>
+                              <AvatarFallback>{(item as Team | Participant).avatar}</AvatarFallback>
                             </Avatar>
                           )}
                           <div>
                             <h3 className={cn("font-semibold", presentationMode && "text-xl")}>{item.name}</h3>
                             {!isTeam && (
                               <p className={cn("text-sm text-muted-foreground", presentationMode && "text-base")}>
-                                {(item as any).team}
+                                {(item as Participant).team}
                               </p>
                             )}
                             {isTeam && (
                               <p className={cn("text-sm text-muted-foreground", presentationMode && "text-base")}>
-                                {(item as any).members.length} miembros
+                                {(item as Team).members.length} miembros
                               </p>
                             )}
                           </div>
@@ -416,10 +450,10 @@ export default function RankingPage({ params }: { params: { id: string } }) {
                           <p className={cn("text-sm font-mono", presentationMode && "text-base")}>{item.totalTime}</p>
                           <p className={cn("text-xs text-muted-foreground", presentationMode && "text-sm")}>tiempo</p>
                         </div>
-                        {isTeam && (item as any).penalties > 0 && (
+                        {isTeam && (item as Team).penalties > 0 && (
                           <div className="text-center">
                             <p className={cn("text-sm text-red-500", presentationMode && "text-base")}>
-                              +{(item as any).penalties}
+                              +{(item as Team).penalties}
                             </p>
                             <p className={cn("text-xs text-muted-foreground", presentationMode && "text-sm")}>
                               penalizaciones

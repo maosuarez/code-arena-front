@@ -11,7 +11,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ onLoginClick }: NavbarProps) {
-  const { setTheme, theme } = useTheme()
+  const { setTheme } = useTheme()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (

@@ -136,6 +136,7 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       toast("Ha ocurrido un error al procesar la acción.")
+      console.log(error)
     } finally {
       setIsLoading(null)
     }
