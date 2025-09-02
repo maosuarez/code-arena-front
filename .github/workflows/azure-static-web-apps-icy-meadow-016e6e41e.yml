@@ -16,6 +16,11 @@ jobs:
       - name: Log in to ACR with token
         run: echo ${{ secrets.ACR_TOKEN_PASSWORD }} | docker login ${{ secrets.AZURE_ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_TOKEN_USERNAME }} --password-stdin
 
+      - name: Crear archivo .env
+        run: |
+          echo "NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }}" >> .env
+          echo "NEXT_PUBLIC_VALIDATION_PASSWORD=${{ secrets.NEXT_PUBLIC_VALIDATION_PASSWORD }}" >> .env
+
       - name: Build Docker image
         run: docker build . -t ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/code-arena:latest
 

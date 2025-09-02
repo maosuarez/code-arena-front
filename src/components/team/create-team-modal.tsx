@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Users, Palette, User } from "lucide-react"
+import { apiRequest } from "@/lib/api"
+import { useTeamCode } from "@/hooks/useTeamCode"
 
 interface CreateTeamModalProps {
   open: boolean
@@ -32,15 +34,36 @@ export function CreateTeamModal({ open, onOpenChange }: CreateTeamModalProps) {
   const [selectedAvatar, setSelectedAvatar] = useState("🚀")
   const [isLoading, setIsLoading] = useState(false)
 
+  const {setTeamCode} = useTeamCode()
+
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!teamName.trim()) return
 
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    onOpenChange(false)
+
+    try {
+      const response = await apiRequest('/teams/create', {
+        method: 'POST',
+        body: {
+          maxMembers: 3,
+          avatar: selectedAvatar,
+          color: selectedColor,
+          teamName: teamName, // ✅ corregido
+        },
+        token: true
+      })
+
+      // Puedes manejar la respuesta aquí si lo necesitas
+      setTeamCode(response.team.teamCode)
+      localStorage.setItem('teamCode', response.team.teamCode)
+    } catch (error) {
+      console.error("Error al crear el equipo:", error)
+      // Puedes mostrar un toast o alerta aquí si quieres
+    } finally {
+      setIsLoading(false)
+      onOpenChange(false)
+    }
 
     // Reset form
     setTeamName("")

@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react"
+import { apiRequest } from "@/lib/api"
+import { useAuth } from "@/hooks/useAuth"
+import { useToken } from "@/hooks/useToken"
+import { useTeamCode } from "@/hooks/useTeamCode"
 
 interface LoginModalProps {
   open: boolean
@@ -18,25 +22,70 @@ interface LoginModalProps {
 export function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const {setIsAuthenticated} = useAuth()
+  const {setToken} = useToken()
+  const {setTeamCode} = useTeamCode()
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    // Simulate API call
-    alert(e)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    onOpenChange(false)
-  }
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    onOpenChange(false)
-  }
+    const formData = new FormData(e.currentTarget);
+    const payload = {
+      username: formData.get("username"),
+      password: formData.get("password"),
+    };
+
+    try {
+      const response = await apiRequest('/users/login', {
+        method: 'POST',
+        body: payload
+      })
+      setIsAuthenticated(true)
+      setToken(response.access_token)
+      localStorage.setItem('token', response.access_token)
+      localStorage.setItem('auth', 'true')
+
+      if (response.teamCode){
+        localStorage.setItem('teamCode', response.teamCode)
+        setTeamCode(response.teamCode)
+      }
+    } catch (error) {
+      console.error("Error en login:", error);
+    } finally {
+      setIsLoading(false);
+      onOpenChange(false);
+    }
+  };
+
+
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const payload = {
+      email: formData.get("email"),
+      password: formData.get("password"),
+      name: formData.get('name')
+    };
+
+    try {
+      const response = await apiRequest('/users/register', {
+        method: 'POST',
+        body: payload
+      })
+      setIsAuthenticated(true)
+      setToken(response.access_token)
+      localStorage.setItem('token', response.access_token)
+      localStorage.setItem('auth', 'true')
+    } catch (error) {
+      console.error("Error en login:", error);
+    } finally {
+      setIsLoading(false);
+      onOpenChange(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -55,12 +104,13 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
           <TabsContent value="login" className="space-y-4">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico</Label>
+                <Label htmlFor="username">Nombre de usuario</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input id="email" type="email" placeholder="tu@email.com" className="pl-10" required />
+                  <Input id="username" name="username" type="text" placeholder="admin" className="pl-10" required />
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="password">Contraseña</Label>
                 <div className="relative">

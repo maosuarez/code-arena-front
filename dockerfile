@@ -1,6 +1,14 @@
 # Etapa 1: Build
 FROM node:18-alpine AS builder
 
+# 🔐 Declarar los argumentos que vienen del workflow
+ARG NEXT_PUBLIC_BASE_URL
+ARG NEXT_PUBLIC_VALIDATION_PASSWORD
+
+# 🧬 Exportarlos como variables de entorno si los necesitas en tiempo de ejecución
+ENV NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
+ENV NEXT_PUBLIC_VALIDATION_PASSWORD=${NEXT_PUBLIC_VALIDATION_PASSWORD}
+
 WORKDIR /app
 
 # Instalar dependencias

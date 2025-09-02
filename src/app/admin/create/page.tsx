@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
@@ -15,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   Calendar,
-  Clock,
   Trophy,
   Target,
   Users,
@@ -24,84 +22,82 @@ import {
   ExternalLink,
   CheckCircle,
   AlertCircle,
-  Copy,
-  Download,
   ArrowLeft,
   ArrowRight,
   Settings,
   HelpCircle,
-  Zap,
   Award,
 } from "lucide-react"
 import { toast } from "sonner"
-
-interface Problem {
-  id: string
-  title: string
-  difficulty: "easy" | "medium" | "hard"
-  url: string
-  slug: string
-  isValid: boolean
-  isValidating: boolean
-}
-
-interface TeamCode {
-  id: string
-  code: string
-  teamName: string
-  maxMembers: number
-  currentMembers: number
-}
+import { Competition, Problem } from "@/lib/types"
+import { apiRequest } from "@/lib/api"
+import { redirect } from "next/navigation"
 
 export default function CreateCompetitionPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
 
   // Step 1: General Data
-  const [competitionName, setCompetitionName] = useState("")
+  const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
+
+  // Para despues sacra la hora
   const [startDate, setStartDate] = useState("")
   const [startTime, setStartTime] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [endTime, setEndTime] = useState("")
-  const [duration, setDuration] = useState("120") // minutes
+  const [duration, setDuration] = useState(120) // minutes
 
   // Step 2: Scoring and Rules
-  const [easyPoints, setEasyPoints] = useState("10")
-  const [mediumPoints, setMediumPoints] = useState("30")
-  const [hardPoints, setHardPoints] = useState("50")
-  const [tiebreaker, setTiebreaker] = useState("time")
-  const [hintsEnabled, setHintsEnabled] = useState(false)
-  const [hintPenalty, setHintPenalty] = useState("5")
-  const [wrongAttemptPenalty, setWrongAttemptPenalty] = useState(true)
-  const [penaltyMinutes, setPenaltyMinutes] = useState("5")
+  const [easyPoints, setEasyPoints] = useState(10)
+  const [mediumPoints, setMediumPoints] = useState(30)
+  const [hardPoints, setHardPoints] = useState(50)
+  
+  // const [tiebreaker, setTiebreaker] = useState("time")
+  // const [hintsEnabled, setHintsEnabled] = useState(false)
+  // const [hintPenalty, setHintPenalty] = useState("5")
+  // const [wrongAttemptPenalty, setWrongAttemptPenalty] = useState(true)
+  // const [penaltyMinutes, setPenaltyMinutes] = useState("5")
 
   // Step 3: Problems
   const [problems, setProblems] = useState<Problem[]>([])
   const [newProblemUrl, setNewProblemUrl] = useState("")
+  const [newProblemTitle, setNewProblemTitle] = useState("")
+  const [newProblemDifficulty, setNewProblemDifficulty] = useState<"easy" | "medium" | "hard">("easy")
+
 
   // Step 4: Teams
-  const [teamCodes, setTeamCodes] = useState<TeamCode[]>([])
-  const [maxTeamSize, setMaxTeamSize] = useState("4")
-  const [numberOfTeams, setNumberOfTeams] = useState("20")
+  // const [teamCodes, setTeamCodes] = useState<TeamCode[]>([])
+  const [maxTeamSize, setMaxTeamSize] = useState(3)
+  // const [numberOfTeams, setNumberOfTeams] = useState("20")
+
+  const [rules, setRules] = useState<string[]>([])
+  const [newRule, setNewRule] = useState("")
+
+  const handleAddRule = () => {
+    if (newRule.trim()) {
+      setRules([...rules, newRule.trim()])
+      setNewRule("")
+    }
+  }
+
+  const handleRemoveRule = (index: number) => {
+    setRules(rules.filter((_, i) => i !== index))
+  }
+
 
   const steps = [
     { number: 1, title: "Datos Generales", description: "Información básica del evento" },
     { number: 2, title: "Puntajes y Reglas", description: "Sistema de puntuación y configuración" },
-    { number: 3, title: "Problemas", description: "Selección de problemas de LeetCode" },
-    { number: 4, title: "Equipos", description: "Generación de códigos de equipo" },
+    { number: 3, title: "Problemas", description: "Selección de problemas de LeetCode" }
   ]
 
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
-        return !!(competitionName && description && startDate && startTime && endDate && endTime)
+        return !!(title && description && startDate && startTime)
       case 2:
         return !!(easyPoints && mediumPoints && hardPoints)
       case 3:
         return problems.length > 0 && problems.every((p) => p.isValid)
-      case 4:
-        return teamCodes.length > 0
       default:
         return false
     }
@@ -119,105 +115,70 @@ export default function CreateCompetitionPage() {
     setCurrentStep((prev) => Math.max(prev - 1, 1))
   }
 
-  const addProblem = async () => {
-    if (!newProblemUrl.trim()) return
+  const addProblem = () => {
+    if (!newProblemUrl.trim() || !newProblemTitle.trim()) return
 
-    const problemId = Date.now().toString()
+    const slug = newProblemUrl.split("/problems/")[1]?.replace("/", "") || "unknown"
     const newProblem: Problem = {
-      id: problemId,
-      title: "Validando...",
-      difficulty: "medium",
-      url: newProblemUrl,
-      slug: extractSlugFromUrl(newProblemUrl),
-      isValid: false,
-      isValidating: true,
+      id: crypto.randomUUID(),
+      title: newProblemTitle.trim(),
+      difficulty: newProblemDifficulty,
+      leetcodeUrl: newProblemUrl.trim(),
+      slug,
+      isValid: true,
+      isValidating: false,
     }
 
-    setProblems((prev) => [...prev, newProblem])
+    setProblems([...problems, newProblem])
     setNewProblemUrl("")
-
-    // Simulate validation
-    setTimeout(() => {
-      setProblems((prev) =>
-        prev.map((p) =>
-          p.id === problemId
-            ? {
-                ...p,
-                title: "Two Sum",
-                difficulty: "easy",
-                isValid: true,
-                isValidating: false,
-              }
-            : p,
-        ),
-      )
-      toast("El problema se ha añadido correctamente")
-    }, 2000)
+    setNewProblemTitle("")
+    setNewProblemDifficulty("easy")
   }
 
   const removeProblem = (id: string) => {
     setProblems((prev) => prev.filter((p) => p.id !== id))
   }
 
-  const extractSlugFromUrl = (url: string): string => {
-    const match = url.match(/leetcode\.com\/problems\/([^/]+)/)
-    return match ? match[1] : ""
-  }
-
-  const generateTeamCodes = () => {
-    const codes: TeamCode[] = []
-    const numTeams = Number.parseInt(numberOfTeams)
-
-    for (let i = 1; i <= numTeams; i++) {
-      codes.push({
-        id: i.toString(),
-        code: generateRandomCode(),
-        teamName: `Equipo ${i}`,
-        maxMembers: Number.parseInt(maxTeamSize),
-        currentMembers: 0,
-      })
-    }
-
-    setTeamCodes(codes)
-    toast(`Se han generado ${numTeams} códigos de equipo`)
-  }
-
-  const generateRandomCode = (): string => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    let result = ""
-    for (let i = 0; i < 12; i++) {
-      if (i > 0 && i % 4 === 0) result += "-"
-      result += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return result
-  }
-
-  const exportInvitations = () => {
-    const invitations = teamCodes.map((team) => ({
-      teamCode: team.code,
-      teamName: team.teamName,
-      maxMembers: team.maxMembers,
-      inviteLink: `https://codearena.com/join/${team.code}`,
-    }))
-
-    const dataStr = JSON.stringify(invitations, null, 2)
-    const dataBlob = new Blob([dataStr], { type: "application/json" })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = "team-invitations.json"
-    link.click()
-
-    toast("El archivo se ha descargado correctamente")
-  }
-
   const publishCompetition = async () => {
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsLoading(false)
 
-    toast("La competencia está ahora disponible para los participantes")
+    const [year, month, day] = startDate.split("-").map(Number)
+    const [hours, minutes] = startTime.split(":").map(Number)
+
+    const competitionDate = new Date(year, month - 1, day, hours, minutes)
+
+    // Simulate API call
+    const competicion: Competition = {
+      id: '',
+      title: title,
+      description: description,
+      date: competitionDate,
+      status: "active",
+      duration: duration,
+      teams: [],
+      maxTeamSize: maxTeamSize,
+      problems: problems,
+      rules: rules,
+      scoring: {
+        easy: easyPoints,
+        medium: mediumPoints,
+        hard: hardPoints,
+      }
+    }
+
+    try {
+      await apiRequest('/competition/create', {
+        method: 'POST',
+        body: competicion
+      })
+    } catch (error) {
+      console.error("Error al crear el equipo:", error)
+      // Puedes mostrar un toast o alerta aquí si quieres
+    } finally {
+      setIsLoading(false)
+      toast("La competencia está ahora disponible para los participantes")
+      redirect("/")
+    }
   }
 
   const getDifficultyColor = (difficulty: string) => {
@@ -293,8 +254,8 @@ export default function CreateCompetitionPage() {
                       </Label>
                       <Input
                         id="competition-name"
-                        value={competitionName}
-                        onChange={(e) => setCompetitionName(e.target.value)}
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
                         placeholder="Torneo Semanal - Algoritmos Básicos"
                       />
                     </div>
@@ -314,7 +275,7 @@ export default function CreateCompetitionPage() {
                         id="duration"
                         type="number"
                         value={duration}
-                        onChange={(e) => setDuration(e.target.value)}
+                        onChange={(e) => setDuration(Number(e.target.value))}
                         placeholder="120"
                       />
                     </div>
@@ -331,7 +292,7 @@ export default function CreateCompetitionPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold flex items-center gap-2">
                         <Calendar className="h-5 w-5 text-accent" />
@@ -358,33 +319,6 @@ export default function CreateCompetitionPage() {
                         </div>
                       </div>
                     </div>
-
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-accent" />
-                        Fecha y Hora de Fin *
-                      </h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="end-date">Fecha</Label>
-                          <Input
-                            id="end-date"
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="end-time">Hora</Label>
-                          <Input
-                            id="end-time"
-                            type="time"
-                            value={endTime}
-                            onChange={(e) => setEndTime(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -404,7 +338,7 @@ export default function CreateCompetitionPage() {
                           id="easy-points"
                           type="number"
                           value={easyPoints}
-                          onChange={(e) => setEasyPoints(e.target.value)}
+                          onChange={(e) => setEasyPoints(Number(e.target.value))}
                           placeholder="10"
                         />
                       </div>
@@ -414,7 +348,7 @@ export default function CreateCompetitionPage() {
                           id="medium-points"
                           type="number"
                           value={mediumPoints}
-                          onChange={(e) => setMediumPoints(e.target.value)}
+                          onChange={(e) => setMediumPoints(Number(e.target.value))}
                           placeholder="30"
                         />
                       </div>
@@ -424,7 +358,7 @@ export default function CreateCompetitionPage() {
                           id="hard-points"
                           type="number"
                           value={hardPoints}
-                          onChange={(e) => setHardPoints(e.target.value)}
+                          onChange={(e) => setHardPoints(Number(e.target.value))}
                           placeholder="50"
                         />
                       </div>
@@ -435,174 +369,173 @@ export default function CreateCompetitionPage() {
 
                   <div>
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Target className="h-5 w-5 text-accent" />
-                      Reglas de Desempate
+                      <Settings className="h-5 w-5 text-accent" />
+                      Configuración Avanzada
                     </h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="tiebreaker">Criterio de desempate</Label>
-                      <Select value={tiebreaker} onValueChange={setTiebreaker}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona el criterio" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="time">Tiempo total de resolución</SelectItem>
-                          <SelectItem value="problems">Número de problemas resueltos</SelectItem>
-                          <SelectItem value="penalties">Menor número de penalizaciones</SelectItem>
-                        </SelectContent>
-                      </Select>
+
+                    {/* Reglas personalizadas */}
+                    <div className="space-y-2 pt-4">
+                      <Label htmlFor="rules">Reglas adicionales</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="rules"
+                          type="text"
+                          value={newRule}
+                          onChange={(e) => setNewRule(e.target.value)}
+                          placeholder="Escribe una regla..."
+                          className="flex-1"
+                        />
+                        <Button onClick={handleAddRule}>Agregar</Button>
+                      </div>
+
+                      <ul className="list-disc pl-6 space-y-1">
+                        {rules.map((rule, index) => (
+                          <li key={index} className="flex justify-between items-center">
+                            <span>{rule}</span>
+                            <Button variant="outline" size="sm" onClick={() => handleRemoveRule(index)}>
+                              Borrar
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
+
                   </div>
 
                   <Separator />
 
                   <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Settings className="h-5 w-5 text-accent" />
-                      Configuración Avanzada
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label htmlFor="hints-enabled">Permitir pistas</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Los equipos pueden solicitar pistas con penalización
-                          </p>
-                        </div>
-                        <Switch id="hints-enabled" checked={hintsEnabled} onCheckedChange={setHintsEnabled} />
-                      </div>
-
-                      {hintsEnabled && (
-                        <div className="ml-6 space-y-2">
-                          <Label htmlFor="hint-penalty">Penalización por pista (puntos)</Label>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Users className="h-5 w-5 text-accent" />
+                        Configuración de Equipos
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 gap-4 mb-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="max-team-size">Tamaño máximo de equipo</Label>
                           <Input
-                            id="hint-penalty"
+                            id="max-team-size"
                             type="number"
-                            value={hintPenalty}
-                            onChange={(e) => setHintPenalty(e.target.value)}
-                            placeholder="5"
-                            className="w-32"
+                            value={maxTeamSize}
+                            onChange={(e) => setMaxTeamSize(Number(e.target.value))}
+                            placeholder="4"
                           />
                         </div>
-                      )}
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label htmlFor="wrong-attempt-penalty">Penalización por intento fallido</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Añadir tiempo de penalización por respuestas incorrectas
-                          </p>
-                        </div>
-                        <Switch
-                          id="wrong-attempt-penalty"
-                          checked={wrongAttemptPenalty}
-                          onCheckedChange={setWrongAttemptPenalty}
-                        />
                       </div>
-
-                      {wrongAttemptPenalty && (
-                        <div className="ml-6 space-y-2">
-                          <Label htmlFor="penalty-minutes">Penalización (minutos)</Label>
-                          <Input
-                            id="penalty-minutes"
-                            type="number"
-                            value={penaltyMinutes}
-                            onChange={(e) => setPenaltyMinutes(e.target.value)}
-                            placeholder="5"
-                            className="w-32"
-                          />
-                        </div>
-                      )}
                     </div>
-                  </div>
                 </div>
               )}
 
-              {/* Step 3: Problems */}
-              {currentStep === 3 && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Target className="h-5 w-5 text-accent" />
-                      Añadir Problemas de LeetCode
-                    </h3>
-                    <div className="flex gap-2 mb-4">
-                      <Input
-                        value={newProblemUrl}
-                        onChange={(e) => setNewProblemUrl(e.target.value)}
-                        placeholder="https://leetcode.com/problems/two-sum/"
-                        className="flex-1"
-                      />
-                      <Button onClick={addProblem} disabled={!newProblemUrl.trim()}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Añadir Problema
-                      </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Pega la URL completa del problema de LeetCode. Se validará automáticamente.
-                    </p>
-                  </div>
-
-                  {problems.length > 0 && (
+              {
+                currentStep === 3 && (
+                  <div className="space-y-6">
                     <div>
-                      <h4 className="font-semibold mb-3">Problemas Añadidos ({problems.length})</h4>
-                      <ScrollArea className="h-64">
-                        <div className="space-y-3">
-                          {problems.map((problem) => (
-                            <Card key={problem.id} className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  {problem.isValidating ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-accent" />
-                                  ) : problem.isValid ? (
-                                    <CheckCircle className="h-5 w-5 text-green-500" />
-                                  ) : (
-                                    <AlertCircle className="h-5 w-5 text-red-500" />
-                                  )}
-                                  <div>
-                                    <p className="font-medium">{problem.title}</p>
-                                    <p className="text-sm text-muted-foreground">{problem.slug}</p>
-                                  </div>
-                                  <Badge className={`text-xs ${getDifficultyColor(problem.difficulty)}`}>
-                                    {problem.difficulty === "easy"
-                                      ? "Fácil"
-                                      : problem.difficulty === "medium"
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Target className="h-5 w-5 text-accent" />
+                        Añadir Problemas de LeetCode
+                      </h3>
+
+                      <div className="space-y-2 mb-4">
+                        <Input
+                          value={newProblemUrl}
+                          onChange={(e) => setNewProblemUrl(e.target.value)}
+                          placeholder="https://leetcode.com/problems/two-sum/"
+                        />
+                        <Input
+                          value={newProblemTitle}
+                          onChange={(e) => setNewProblemTitle(e.target.value)}
+                          placeholder="Título del problema"
+                        />
+                        <div className="flex gap-2 items-center">
+                          <Label>Dificultad:</Label>
+                          <Select
+                            value={newProblemDifficulty}
+                            onValueChange={(value) => setNewProblemDifficulty(value as "easy" | "medium" | "hard")}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Selecciona dificultad" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="easy">Fácil</SelectItem>
+                              <SelectItem value="medium">Medio</SelectItem>
+                              <SelectItem value="hard">Difícil</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          <Button onClick={addProblem} disabled={!newProblemUrl.trim() || !newProblemTitle.trim()}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Añadir Problema
+                          </Button>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Ingresa la URL, el título y la dificultad del problema. Se validará manualmente.
+                      </p>
+                    </div>
+
+                    {problems.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold mb-3">Problemas Añadidos ({problems.length})</h4>
+                        <ScrollArea className="h-64">
+                          <div className="space-y-3">
+                            {problems.map((problem) => (
+                              <Card key={problem.id} className="p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    {problem.isValidating ? (
+                                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-accent" />
+                                    ) : problem.isValid ? (
+                                      <CheckCircle className="h-5 w-5 text-green-500" />
+                                    ) : (
+                                      <AlertCircle className="h-5 w-5 text-red-500" />
+                                    )}
+                                    <div>
+                                      <p className="font-medium">{problem.title}</p>
+                                      <p className="text-sm text-muted-foreground">{problem.slug}</p>
+                                    </div>
+                                    <Badge className={`text-xs ${getDifficultyColor(problem.difficulty)}`}>
+                                      {problem.difficulty === "easy"
+                                        ? "Fácil"
+                                        : problem.difficulty === "medium"
                                         ? "Medio"
                                         : "Difícil"}
-                                  </Badge>
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => window.open(problem.leetcodeUrl, "_blank")}
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Probar enlace</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => removeProblem(problem.id || "")}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => window.open(problem.url, "_blank")}
-                                      >
-                                        <ExternalLink className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Probar enlace</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => removeProblem(problem.id)}
-                                    className="text-red-500 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  )}
-                </div>
-              )}
+                              </Card>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
+                )
+              }
 
               {/* Step 4: Teams */}
               {currentStep === 4 && (
@@ -619,71 +552,14 @@ export default function CreateCompetitionPage() {
                           id="max-team-size"
                           type="number"
                           value={maxTeamSize}
-                          onChange={(e) => setMaxTeamSize(e.target.value)}
+                          onChange={(e) => setMaxTeamSize(Number(e.target.value))}
                           placeholder="4"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="number-of-teams">Número de equipos</Label>
-                        <Input
-                          id="number-of-teams"
-                          type="number"
-                          value={numberOfTeams}
-                          onChange={(e) => setNumberOfTeams(e.target.value)}
-                          placeholder="20"
-                        />
-                      </div>
                     </div>
-                    <Button onClick={generateTeamCodes} className="bg-accent hover:bg-accent/90">
-                      <Zap className="mr-2 h-4 w-4" />
-                      Generar Códigos de Equipo
-                    </Button>
                   </div>
 
-                  {teamCodes.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold">Códigos Generados ({teamCodes.length})</h4>
-                        <Button variant="outline" onClick={exportInvitations}>
-                          <Download className="mr-2 h-4 w-4" />
-                          Exportar Invitaciones
-                        </Button>
-                      </div>
-                      <ScrollArea className="h-64">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {teamCodes.map((team) => (
-                            <Card key={team.id} className="p-3">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-mono text-sm font-medium">{team.code}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {team.currentMembers}/{team.maxMembers} miembros
-                                  </p>
-                                </div>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        navigator.clipboard.writeText(team.code)
-                                        toast( "El código ha sido copiado al portapapeles")
-                                      }}
-                                    >
-                                      <Copy className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Copiar código</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  )}
+                  
                 </div>
               )}
             </CardContent>
@@ -697,7 +573,7 @@ export default function CreateCompetitionPage() {
             </Button>
 
             <div className="flex items-center gap-2">
-              {currentStep < 4 ? (
+              {currentStep < 3 ? (
                 <Button
                   onClick={nextStep}
                   disabled={!validateStep(currentStep)}

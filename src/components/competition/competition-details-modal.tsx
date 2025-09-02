@@ -4,29 +4,17 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Trophy, Clock, Users, Target, Award, AlertCircle } from "lucide-react"
+import { Trophy, Clock, Users, Target, AlertCircle } from "lucide-react"
+import { Competition } from "@/lib/types"
 
 interface CompetitionDetailsModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  competition: {
-    title: string
-    description: string
-    status: "active" | "upcoming" | "finished"
-    duration: string
-    teams: number
-    problems: number
-    prize?: string
-    rules: string[]
-    scoring: {
-      easy: number
-      medium: number
-      hard: number
-    }
-  }
+  competition: Competition | undefined
 }
 
 export function CompetitionDetailsModal({ open, onOpenChange, competition }: CompetitionDetailsModalProps) {
+  if(!competition){return null}
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -66,14 +54,8 @@ export function CompetitionDetailsModal({ open, onOpenChange, competition }: Com
             </Badge>
             <Badge variant="outline" className="flex items-center gap-1">
               <Target className="h-3 w-3" />
-              {competition.problems} problemas
+              {competition.problems.length} problemas
             </Badge>
-            {competition.prize && (
-              <Badge variant="outline" className="flex items-center gap-1 text-yellow-600 border-yellow-200">
-                <Award className="h-3 w-3" />
-                {competition.prize}
-              </Badge>
-            )}
           </div>
 
           <Separator />

@@ -6,12 +6,15 @@ import { Moon, Sun, Code2, Menu, X, Sparkles } from "lucide-react"
 import { useTheme } from "next-themes"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
+import { useAuth } from "@/hooks/useAuth"
+
 interface NavbarProps {
   onLoginClick?: () => void
 }
 
 export function Navbar({ onLoginClick }: NavbarProps) {
   const { setTheme } = useTheme()
+  const { isAuthenticated } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
@@ -75,21 +78,26 @@ export function Navbar({ onLoginClick }: NavbarProps) {
             </DropdownMenu>
 
             {/* Auth Buttons */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onLoginClick}
-              className="hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105 transition-all duration-300 rounded-xl px-4"
-            >
-              Iniciar sesión
-            </Button>
-            <Button
-              size="sm"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 rounded-xl px-4"
-              onClick={onLoginClick}
-            >
-              Registrarse
-            </Button>
+            {
+              !isAuthenticated &&
+              <div>
+                <Button
+                variant="ghost"
+                size="sm"
+                onClick={onLoginClick}
+                className="hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105 transition-all duration-300 rounded-xl px-4"
+              >
+                Iniciar sesión
+              </Button>
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 rounded-xl px-4"
+                onClick={onLoginClick}
+              >
+                Registrarse
+              </Button>
+              </div>
+            }
           </div>
 
           {/* Mobile Menu Button */}
@@ -121,7 +129,11 @@ export function Navbar({ onLoginClick }: NavbarProps) {
         >
           <div className="py-4 space-y-3 animate-in slide-in-from-top-2">
             {/* Auth Buttons */}
-            <Button
+
+            {
+              !isAuthenticated &&
+              <div>
+              <Button
               variant="ghost"
               className="w-full justify-start hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.02] transition-all duration-300 rounded-xl"
               onClick={onLoginClick}
@@ -134,6 +146,8 @@ export function Navbar({ onLoginClick }: NavbarProps) {
             >
               Registrarse
             </Button>
+            </div>
+            }
             <div className="flex items-center justify-between pt-3 border-t border-border/40">
               <span className="text-sm text-muted-foreground font-medium">Tema</span>
               <DropdownMenu>

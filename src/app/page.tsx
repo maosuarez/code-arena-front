@@ -1,31 +1,92 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Users, UserPlus, Trophy, Code, Search, Settings, ExternalLink, Eye, Play, Star, Sparkles } from "lucide-react"
+import { Users, UserPlus, Trophy, Code, Search, Settings,
+  ExternalLink, Clipboard, Eye, UserMinus, Play, Star, Sparkles, Target, Bolt } from "lucide-react"
 import { LoginModal } from "@/components/auth/login-modal"
 import { CreateTeamModal } from "@/components/team/create-team-modal"
 import { JoinTeamModal } from "@/components/team/join-team-modal"
 import { CompetitionDetailsModal } from "@/components/competition/competition-details-modal"
 import { toast } from "sonner"
+import { Competition } from "@/lib/types"
+import { useTeamCode } from "@/hooks/useTeamCode"
+import { apiRequest } from "@/lib/api"
 
 export default function HomePage() {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const [createTeamModalOpen, setCreateTeamModalOpen] = useState(false)
   const [joinTeamModalOpen, setJoinTeamModalOpen] = useState(false)
   const [competitionDetailsOpen, setCompetitionDetailsOpen] = useState(false)
+  const [competitionOpen, setCompetitionOpen] = useState<Competition>()
   const [leetcodeUsername, setLeetcodeUsername] = useState("")
   const [isLeetcodeConnected, setIsLeetcodeConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [listCompetition, setListCompetition] = useState(Array<Competition>)
+
+  const {teamCode, setTeamCode} = useTeamCode()
+
+  const icons = [Trophy, Star, Target, Bolt]
+
+  const handleOpen = (sample: Competition) => {
+    setCompetitionDetailsOpen(true)
+    setCompetitionOpen(sample)
+  }
+
+  const handleTeamCreation = () => {
+    setCreateTeamModalOpen(true)
+  }
+
+  const handleJoin = async(compet: Competition) => {
+    try {
+
+      if (!teamCode){
+        toast.error('Crea Primero un Equipo')
+        return
+      }
+
+      await apiRequest('/competition/join', {
+        method: 'DELETE',
+        body: {
+          teamCode: teamCode,
+          competitionId: compet.id
+        }
+      })
+      toast.info('Se te agrego a una Competencia')
+    } catch (error) {
+      console.error("Error al dejar el equipo:", error)
+      // Puedes mostrar un toast o alerta aquí si quieres
+    }
+  }
+
+  const handleLeaveTeam = async () => {
+    try {
+      await apiRequest('/teams/delete', {
+        method: 'DELETE',
+        token: true
+      })
+    } catch (error) {
+      console.error("Error al dejar el equipo:", error)
+      // Puedes mostrar un toast o alerta aquí si quieres
+    } finally {
+      localStorage.removeItem('teamCode')
+      setTeamCode('')
+    }
+  }
+
+  function formatTeamCode(code: string): string {
+    if (code.length !== 6) return code // Validación básica
+    return `${code.slice(0, 3)}-${code.slice(3)}`
+  }
+
 
   const handleSaveLeetcode = async () => {
     if (!leetcodeUsername.trim()) return
 
     setIsConnecting(true)
-
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
@@ -34,27 +95,25 @@ export default function HomePage() {
     toast(`Tu cuenta ${leetcodeUsername} ha sido vinculada exitosamente.`)
   }
 
-  const sampleCompetition = {
-    title: "Torneo Semanal - Algoritmos Básicos",
-    description: "Competencia de 2 horas con problemas de dificultad Easy y Medium",
-    status: "active" as const,
-    duration: "2 horas",
-    teams: 15,
-    problems: 6,
-    rules: [
-      "Cada equipo puede tener máximo 4 integrantes",
-      "Solo se permite usar LeetCode para resolver problemas",
-      "Las soluciones deben ser validadas automáticamente",
-      "Prohibido compartir código entre equipos",
-      "El tiempo de penalización por respuesta incorrecta es de 5 minutos",
-      "Los empates se resuelven por tiempo total de resolución",
-    ],
-    scoring: {
-      easy: 10,
-      medium: 30,
-      hard: 50,
-    },
+  useEffect(() => {
+  const fetchCompetitions = async () => {
+    try {
+      const response = await apiRequest("/competition/all", { method: "GET" })
+
+      if (!response || !Array.isArray(response)) {
+        throw new Error("Respuesta inválida del servidor")
+      }
+
+      setListCompetition(response)
+    } catch{
+      toast.error("Error al cargar competiciones")
+    }
   }
+
+  fetchCompetitions()
+}, [])
+
+
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -78,50 +137,124 @@ export default function HomePage() {
 
       {/* Main Action Cards */}
       <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-        <Card className="group hover:shadow-xl transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 border-0 bg-gradient-to-br from-white to-blue-50/50 dark:from-slate-900 dark:to-blue-950/50">
-          <CardHeader className="text-center">
-            <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-              <Users className="h-8 w-8 text-white" />
-            </div>
-            <CardTitle className="text-2xl group-hover:text-accent transition-colors">Crear Equipo</CardTitle>
-            <CardDescription>Forma tu equipo y personalízalo con nombre, color y avatar único</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
-              size="lg"
-              onClick={() => setCreateTeamModalOpen(true)}
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Crear Nuevo Equipo
-            </Button>
-          </CardContent>
-        </Card>
+        {teamCode === '' ? (
+          // 🟦 Tarjeta para crear equipo
+          <Card className="group hover:shadow-xl transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 border-0 bg-gradient-to-br from-white to-blue-50/50 dark:from-slate-900 dark:to-blue-950/50">
+            <CardHeader className="text-center">
+              <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <Users className="h-8 w-8 text-white" />
+              </div>
+              <CardTitle className="text-2xl group-hover:text-accent transition-colors">Crear Equipo</CardTitle>
+              <CardDescription>Forma tu equipo y personalízalo con nombre, color y avatar único</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
+                size="lg"
+                onClick={() => handleTeamCreation()}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Crear Nuevo Equipo
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          // 🟪 Tarjeta con código de equipo y opción de copiar
+          <Card className="group hover:shadow-xl transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 border-0 bg-gradient-to-br from-white to-purple-50/50 dark:from-slate-900 dark:to-purple-950/50">
+            <CardHeader className="text-center">
+              <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <Clipboard className="h-8 w-8 text-white" />
+              </div>
+              <CardTitle className="text-2xl group-hover:text-accent transition-colors">Tu Código de Equipo</CardTitle>
+              <CardDescription>Comparte este código para que otros se unan a tu equipo</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xl font-mono bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-md shadow-inner">
+                  {formatTeamCode(teamCode)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigator.clipboard.writeText(teamCode)}
+                  className="hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                >
+                  Copiar
+                </Button>
+              </div>
+              <div className="text-center pt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleTeamCreation()}
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Crear otro equipo
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="group hover:shadow-xl transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 border-0 bg-gradient-to-br from-white to-green-50/50 dark:from-slate-900 dark:to-green-950/50">
-          <CardHeader className="text-center">
-            <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-r from-green-500 to-cyan-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-              <UserPlus className="h-8 w-8 text-white" />
-            </div>
-            <CardTitle className="text-2xl group-hover:text-green-600 transition-colors">Unirse por Código</CardTitle>
-            <CardDescription>¿Ya tienes un código de equipo? Únete en segundos</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Input
-              placeholder="Ingresa el código del equipo"
-              className="text-center text-lg font-mono border-2 focus:border-green-500 transition-colors"
-            />
-            <Button
-              variant="outline"
-              className="w-full border-2 border-green-200 hover:bg-green-50 hover:border-green-300 dark:border-green-800 dark:hover:bg-green-950 transition-all duration-300 transform hover:scale-[1.02] bg-transparent"
-              size="lg"
-              onClick={() => setJoinTeamModalOpen(true)}
-            >
-              <UserPlus className="mr-2 h-4 w-4" />
-              Unirme al Equipo
-            </Button>
-          </CardContent>
-        </Card>
+        {teamCode === '' ? (
+          // 🟢 Tarjeta para unirse por código
+          <Card className="group hover:shadow-xl transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 border-0 bg-gradient-to-br from-white to-green-50/50 dark:from-slate-900 dark:to-green-950/50">
+            <CardHeader className="text-center">
+              <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-r from-green-500 to-cyan-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <UserPlus className="h-8 w-8 text-white" />
+              </div>
+              <CardTitle className="text-2xl group-hover:text-green-600 transition-colors">Unirse por Código</CardTitle>
+              <CardDescription>¿Ya tienes un código de equipo? Únete en segundos</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Input
+                placeholder="Ingresa el código del equipo"
+                className="text-center text-lg font-mono border-2 focus:border-green-500 transition-colors"
+                onClick={() => setJoinTeamModalOpen(true)}
+              />
+              <Button
+                variant="outline"
+                className="w-full border-2 border-green-200 hover:bg-green-50 hover:border-green-300 dark:border-green-800 dark:hover:bg-green-950 transition-all duration-300 transform hover:scale-[1.02] bg-transparent"
+                size="lg"
+                onClick={() => setJoinTeamModalOpen(true)}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Unirme al Equipo
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          // 🔴 Tarjeta para salir del equipo actual
+          <Card className="group hover:shadow-xl transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 border-0 bg-gradient-to-br from-white to-red-50/50 dark:from-slate-900 dark:to-red-950/50">
+            <CardHeader className="text-center">
+              <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-r from-red-500 to-orange-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <UserMinus className="h-8 w-8 text-white" />
+              </div>
+              <CardTitle className="text-2xl group-hover:text-red-600 transition-colors">Salir del Equipo</CardTitle>
+              <CardDescription>Actualmente estás en el equipo <span className="font-mono">{formatTeamCode(teamCode)}</span></CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
+                size="lg"
+                onClick={() => handleLeaveTeam()}
+              >
+                <UserMinus className="mr-2 h-4 w-4" />
+                Salir del Equipo
+              </Button>
+              <div className="text-center pt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setJoinTeamModalOpen(true)}
+                  className="text-green-600 dark:text-green-400 hover:underline"
+                >
+                  Unirme a otro equipo
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* LeetCode Integration */}
@@ -188,138 +321,94 @@ export default function HomePage() {
 
         <div className="grid gap-6 max-w-4xl mx-auto">
           {/* Sample Competition */}
-          <Card className="hover:shadow-xl transition-all duration-500 hover:scale-[1.02] border-0 bg-gradient-to-r from-white to-yellow-50/30 dark:from-slate-900 dark:to-yellow-950/30 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-yellow-400/20 to-orange-500/20 rounded-full -translate-y-16 translate-x-16"></div>
-            <CardHeader className="relative z-10">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 flex items-center justify-center animate-pulse">
-                      <Trophy className="h-5 w-5 text-white" />
-                    </div>
-                    Torneo Semanal - Algoritmos Básicos
-                  </CardTitle>
-                  <CardDescription className="mt-2 text-base">
-                    Competencia de 2 horas con problemas de dificultad Easy y Medium
-                  </CardDescription>
-                </div>
-                <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg animate-bounce">
-                  🔴 En Vivo
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="relative z-10">
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Badge
-                  variant="outline"
-                  className="border-yellow-200 text-yellow-700 dark:border-yellow-800 dark:text-yellow-300"
-                >
-                  👥 15 equipos
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300"
-                >
-                  🧩 6 problemas
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="border-red-200 text-red-700 dark:border-red-800 dark:text-red-300 animate-pulse"
-                >
-                  ⏰ Termina en 1h 23m
-                </Badge>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCompetitionDetailsOpen(true)}
-                  className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-950 transition-all duration-300"
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  Ver Detalles
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                >
-                  <Play className="mr-2 h-4 w-4" />
-                  Unirme Ahora
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300"
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  Administrar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {listCompetition.map((competition, index) => {
+            const now = new Date()
+            const compDate = new Date(competition.date)
+            const Icon = icons[index % icons.length] // Alternancia simple
 
-          {/* Upcoming Competition */}
-          <Card className="hover:shadow-xl transition-all duration-500 hover:scale-[1.02] border-0 bg-gradient-to-r from-white to-blue-50/30 dark:from-slate-900 dark:to-blue-950/30 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-purple-500/20 rounded-full -translate-y-12 -translate-x-12"></div>
-            <CardHeader className="relative z-10">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      <Star className="h-5 w-5 text-white" />
+            // Estado temporal
+            let statusLabel = ""
+            let statusStyle = ""
+            if (competition.status === "active" && compDate <= now) {
+              statusLabel = "🔴 En Vivo"
+              statusStyle = "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg animate-bounce"
+            } else if (compDate > now) {
+              statusLabel = "🟡 Próxima"
+              statusStyle = "bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-md"
+            } else {
+              statusLabel = "⚫ Finalizada"
+              statusStyle = "bg-gradient-to-r from-slate-500 to-slate-700 text-white shadow-sm"
+            }
+
+            return (
+              <Card
+                key={index}
+                className="hover:shadow-xl transition-all duration-500 hover:scale-[1.02] border-0 bg-gradient-to-r from-white to-yellow-50/30 dark:from-slate-900 dark:to-yellow-950/30 relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-yellow-400/20 to-orange-500/20 rounded-full -translate-y-16 translate-x-16"></div>
+
+                <CardHeader className="relative z-10">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-xl">
+                        <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 flex items-center justify-center animate-pulse">
+                          <Icon className="h-5 w-5 text-white" />
+                        </div>
+                        {competition.title}
+                      </CardTitle>
+                      <CardDescription className="mt-2 text-base">
+                        {competition.description}
+                      </CardDescription>
                     </div>
-                    Campeonato Mensual - Estructuras de Datos
-                  </CardTitle>
-                  <CardDescription className="mt-2 text-base">
-                    Competencia avanzada de 3 horas con problemas Medium y Hard
-                  </CardDescription>
-                </div>
-                <Badge variant="secondary" className="shadow-md">
-                  Próxima
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="relative z-10">
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Badge
-                  variant="outline"
-                  className="border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300"
-                >
-                  🚀 Inicia en 2 días
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="border-purple-200 text-purple-700 dark:border-purple-800 dark:text-purple-300"
-                >
-                  🧩 8 problemas
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="border-green-200 text-green-700 dark:border-green-800 dark:text-green-300"
-                >
-                  💰 Premio: $500
-                </Badge>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-950 transition-all duration-300 bg-transparent"
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  Ver Detalles
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="hover:bg-purple-50 hover:border-purple-300 dark:hover:bg-purple-950 transition-all duration-300 bg-transparent"
-                >
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Registrar Equipo
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+
+                    <Badge className={statusStyle}>{statusLabel}</Badge>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="relative z-10">
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <Badge variant="outline" className="border-yellow-200 text-yellow-700 dark:border-yellow-800 dark:text-yellow-300">
+                      👥 {competition.teams} equipos
+                    </Badge>
+                    <Badge variant="outline" className="border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300">
+                      🧩 {competition.problems.length} problemas
+                    </Badge>
+                    <Badge variant="outline" className="border-red-200 text-red-700 dark:border-red-800 dark:text-red-300 animate-pulse">
+                      📅 {compDate.toLocaleDateString("es-CO", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                    </Badge>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpen(competition)}
+                      className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-950 transition-all duration-300"
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Ver Detalles
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleJoin(competition)}
+                      className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                    >
+                      <Play className="mr-2 h-4 w-4" />
+                      Unirme Ahora
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300"
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      Administrar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       </div>
 
@@ -386,7 +475,7 @@ export default function HomePage() {
       <CompetitionDetailsModal
         open={competitionDetailsOpen}
         onOpenChange={setCompetitionDetailsOpen}
-        competition={sampleCompetition}
+        competition={competitionOpen}
       />
     </div>
   )

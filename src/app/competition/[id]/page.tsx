@@ -20,8 +20,6 @@ import {
   Filter,
   EyeOff,
   Users,
-  MessageCircle,
-  Send,
   UserPlus,
   Zap,
   Target,
@@ -36,94 +34,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import Link from "next/link"
-
-// Mock data
-const competitionData = {
-  id: "weekly-algo-basic",
-  title: "Torneo Semanal - Algoritmos Básicos",
-  description: "Competencia de 2 horas con problemas de dificultad Easy y Medium",
-  endTime: new Date(Date.now() + 83 * 60 * 1000), // 1h 23m from now
-  totalDuration: 120, // 2 hours in minutes
-}
-
-const problems = [
-  {
-    id: 1,
-    title: "Two Sum",
-    difficulty: "easy",
-    points: 10,
-    tags: ["Array", "Hash Table"],
-    status: "solved",
-    leetcodeUrl: "https://leetcode.com/problems/two-sum/",
-  },
-  {
-    id: 2,
-    title: "Add Two Numbers",
-    difficulty: "medium",
-    points: 30,
-    tags: ["Linked List", "Math"],
-    status: "in-progress",
-    leetcodeUrl: "https://leetcode.com/problems/add-two-numbers/",
-  },
-  {
-    id: 3,
-    title: "Longest Substring Without Repeating Characters",
-    difficulty: "medium",
-    points: 30,
-    tags: ["Hash Table", "String", "Sliding Window"],
-    status: "not-attempted",
-    leetcodeUrl: "https://leetcode.com/problems/longest-substring-without-repeating-characters/",
-  },
-  {
-    id: 4,
-    title: "Median of Two Sorted Arrays",
-    difficulty: "hard",
-    points: 50,
-    tags: ["Array", "Binary Search", "Divide and Conquer"],
-    status: "not-attempted",
-    leetcodeUrl: "https://leetcode.com/problems/median-of-two-sorted-arrays/",
-  },
-  {
-    id: 5,
-    title: "Reverse Integer",
-    difficulty: "easy",
-    points: 10,
-    tags: ["Math"],
-    status: "not-attempted",
-    leetcodeUrl: "https://leetcode.com/problems/reverse-integer/",
-  },
-  {
-    id: 6,
-    title: "Container With Most Water",
-    difficulty: "medium",
-    points: 30,
-    tags: ["Array", "Two Pointers", "Greedy"],
-    status: "not-attempted",
-    leetcodeUrl: "https://leetcode.com/problems/container-with-most-water/",
-  },
-]
-
-const teamMembers = [
-  { id: 1, name: "Ana García", avatar: "AG", status: "online", leetcode: "ana_codes" },
-  { id: 2, name: "Carlos López", avatar: "CL", status: "online", leetcode: "carlos_dev" },
-  { id: 3, name: "María Rodríguez", avatar: "MR", status: "away", leetcode: "maria_algo" },
-]
-
-const submissions = [
-  { id: 1, problem: "Two Sum", status: "AC", time: "12:34", member: "Ana García" },
-  { id: 2, problem: "Add Two Numbers", status: "WA", time: "15:22", member: "Carlos López" },
-  { id: 3, problem: "Two Sum", status: "TLE", time: "08:15", member: "María Rodríguez" },
-]
-
-const chatMessages = [
-  { id: 1, member: "Ana García", message: "¡Terminé Two Sum! 🎉", time: "12:35" },
-  { id: 2, member: "Carlos López", message: "Ayuda con Add Two Numbers, no pasa el caso 3", time: "15:23" },
-  { id: 3, member: "María Rodríguez", message: "Revisando el enfoque de sliding window", time: "16:45" },
-]
+import { Competition, Problem } from "@/lib/types"
+import { apiRequest } from "@/lib/api"
+import { useTeamCode } from "@/hooks/useTeamCode"
+import { Submission } from "@/lib/types"
+import Loading from "@/app/loading"
 
 export default function CompetitionPage({ params }: { params: { id: string } }) {
-  const [timeLeft, setTimeLeft] = useState(83 * 60) // 1h 23m in seconds
-  const [filteredProblems, setFilteredProblems] = useState(problems)
+  const [timeLeft, setTimeLeft] = useState(60) // 1h 23m in seconds
+  const [filteredProblems, setFilteredProblems] = useState<Problem[]>([])
   const [difficultyFilter, setDifficultyFilter] = useState("all")
   const [hideCompleted, setHideCompleted] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -131,6 +50,78 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const [chatMessage, setChatMessage] = useState("")
   const [compactMode, setCompactMode] = useState(false)
+  const [competitionData, setCompetitionData] = useState<Competition>({} as Competition)
+  const [problems, setProblems] = useState<Problem[]>([])
+  const [members, setMembers] = useState<{ id: string; name: string; LeetCode: string }[]>([])
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const {teamCode} = useTeamCode()
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [password, setPassword] = useState("");
+  // const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null);
+
+
+
+  useEffect(() => {
+    const fetchCompetition = async () => {
+      try {
+        const response = await apiRequest(`/competition/${params.id}`, {
+          method: "GET",
+        })
+
+        if (!response || !response.competition) {
+          throw new Error("Competición no encontrada o respuesta inválida")
+        }
+
+        const compet: Competition = response.competition
+
+        setCompetitionData(compet)
+        setProblems(compet.problems || [])
+
+        setTimeLeft(getTimeRemaining(compet.date, compet.duration))
+      } catch {
+        setError("No se pudo cargar la competición")
+        // Puedes disparar un toast aquí si usas react-hot-toast o sonner
+      } finally {
+        setLoading(false)
+      }
+
+      try {
+        const response = await apiRequest(`/teams/${teamCode}`, {
+          method: "GET",
+          token: true
+        })
+
+        setMembers(response.members)
+        setSubmissions(response.team.submissions)
+
+      } catch  {
+        setError("No se pudo cargar el team")
+        // Puedes disparar un toast aquí si usas react-hot-toast o sonner
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    function getTimeRemaining(startDate: Date, durationMinutes: number, now: Date = new Date()) {
+      const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
+      const diffMs = endDate.getTime() - now.getTime()
+
+      if (diffMs <= 0) return 0
+
+      const diffMinutes = Math.floor(diffMs / (1000 * 60))
+
+      return diffMinutes
+    }
+
+
+    fetchCompetition()
+
+  }, [params.id, teamCode])
+
+  
 
   // Timer countdown
   useEffect(() => {
@@ -149,7 +140,8 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
     }
 
     if (hideCompleted) {
-      filtered = filtered.filter((p) => p.status !== "solved")
+      const submissionIds = submissions.map((s) => s.id);
+      filtered = filtered.filter((p) => !submissionIds.includes(p.id || ''));
     }
 
     if (searchQuery) {
@@ -157,7 +149,7 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
     }
 
     setFilteredProblems(filtered)
-  }, [difficultyFilter, hideCompleted, searchQuery])
+  }, [difficultyFilter, hideCompleted, searchQuery, submissions, problems])
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600)
@@ -167,12 +159,12 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
   }
 
   const getProgressPercentage = () => {
-    const totalTime = competitionData.totalDuration * 60
+    const totalTime = competitionData.duration * 60
     const elapsed = totalTime - timeLeft
     return (elapsed / totalTime) * 100
   }
 
-  const handleProblemAction = (problemId: number, action: string) => {
+  const handleProblemAction = (problemId: string, action: string) => {
     const problem = problems.find((p) => p.id === problemId)
     if (!problem) return
 
@@ -187,19 +179,13 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
         toast( "Verificando tu envío en LeetCode")
         // Simulate validation
         setTimeout(() => {
-          toast( `+${problem.points} puntos para tu equipo`)
+          toast( `+${competitionData.scoring[problem.difficulty]} puntos para tu equipo`)
         }, 2000)
         break
       case "request-hint":
         toast( "Se han descontado 5 puntos por la pista")
         break
     }
-  }
-
-  const sendChatMessage = () => {
-    if (!chatMessage.trim()) return
-    toast("Tu mensaje ha sido enviado al equipo")
-    setChatMessage("")
   }
 
   const copyTeamLink = () => {
@@ -221,6 +207,13 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
   }
 
   const getStatusIcon = (status: string) => {
+    if (!status) return <AlertCircle className="h-4 w-4 text-muted-foreground" />
+    const sub = submissions.find(p => p.id == status)
+    if (sub){
+      status = "solved"
+    }else{
+      return <AlertCircle className="h-4 w-4 text-muted-foreground" />
+    }
     switch (status) {
       case "solved":
         return <CheckCircle className="h-4 w-4 text-green-500" />
@@ -230,6 +223,8 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
         return <AlertCircle className="h-4 w-4 text-muted-foreground" />
     }
   }
+
+  if(error || loading) return <Loading/>
 
   return (
     <div className="min-h-screen bg-background">
@@ -327,7 +322,7 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          {getStatusIcon(problem.status)}
+                          {getStatusIcon(problem.id || '')}
                           <CardTitle className="text-base">{problem.title}</CardTitle>
                           <Badge className={`text-xs ${getDifficultyColor(problem.difficulty)}`}>
                             {problem.difficulty === "easy"
@@ -337,16 +332,9 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
                                 : "Difícil"}
                           </Badge>
                         </div>
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {problem.tags.map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-bold text-accent">{problem.points} pts</div>
+                        <div className="text-lg font-bold text-accent">{competitionData.scoring[problem.difficulty]} pts</div>
                       </div>
                     </div>
                   </CardHeader>
@@ -355,32 +343,71 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleProblemAction(problem.id, "open-leetcode")}
+                        onClick={() => handleProblemAction(problem.id || '', "open-leetcode")}
                       >
                         <ExternalLink className="mr-2 h-4 w-4" />
                         Abrir en LeetCode
                       </Button>
-                      {problem.status === "not-attempted" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleProblemAction(problem.id, "mark-in-progress")}
-                        >
-                          <Play className="mr-2 h-4 w-4" />
-                          Marcar en Curso
-                        </Button>
-                      )}
-                      {problem.status !== "solved" && (
+                      {!submissions.filter(p => p.id == problem.id) && (
                         <Button
                           size="sm"
                           className="bg-accent hover:bg-accent/90"
-                          onClick={() => handleProblemAction(problem.id, "validate-ac")}
+                          onClick={() => {
+                            setShowDialog(true);
+                          }}
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
-                          Validar AC
+                          Validar
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => handleProblemAction(problem.id, "request-hint")}>
+                      {showDialog && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                          <div className="bg-white p-6 rounded shadow-lg w-[300px]">
+                            <h2 className="text-lg font-semibold mb-4">Ingresa tu contraseña</h2>
+                            <input
+                              type="password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className="w-full border px-3 py-2 rounded mb-4"
+                              placeholder="Contraseña"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                className="bg-gray-300 hover:bg-gray-400"
+                                onClick={() => {
+                                  setShowDialog(false);
+                                  setPassword("");
+                                }}
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-accent hover:bg-accent/90"
+                                onClick={() => {
+                                  const expectedPassword = process.env.NEXT_PUBLIC_VALIDATION_PASSWORD;
+
+                                  if (password !== expectedPassword) {
+                                    alert("Contraseña incorrecta. No se puede validar el reto.");
+                                    return;
+                                  }
+
+                                  // ✅ Ejecutar acción solo si la contraseña es válida
+                                  handleProblemAction(problem.id || '', "validate-ac");
+
+                                  setShowDialog(false);
+                                  setPassword("");
+                                }}
+                              >
+                                Validar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <Button size="sm" variant="ghost" onClick={() => handleProblemAction(problem.id || '', "request-hint")}>
                         <Lightbulb className="mr-2 h-4 w-4" />
                         Pedir Pista (-5 pts)
                       </Button>
@@ -465,7 +492,8 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
             </Card>
 
             {/* Team Chat */}
-            <Card>
+            {/*
+              <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MessageCircle className="h-5 w-5 text-accent" />
@@ -499,6 +527,7 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
                 </div>
               </CardContent>
             </Card>
+            */}
 
             {/* Team Members */}
             <Card>
@@ -510,20 +539,15 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {teamMembers.map((member) => (
+                  {members.map((member) => (
                     <div key={member.id} className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback>{member.avatar}</AvatarFallback>
+                        <AvatarFallback>{member.name}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
                         <p className="text-sm font-medium">{member.name}</p>
-                        <p className="text-xs text-muted-foreground">@{member.leetcode}</p>
+                        <p className="text-xs text-muted-foreground">@{member.LeetCode}</p>
                       </div>
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          member.status === "online" ? "bg-green-500" : "bg-yellow-500"
-                        }`}
-                      />
                     </div>
                   ))}
                   <Separator />
