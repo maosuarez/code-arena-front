@@ -1,13 +1,14 @@
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   params?: Record<string, string | number>;
-  body?: any;
+  body?: unknown;
   headers?: Record<string, string>;
   token?: boolean
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestOptions = {}
