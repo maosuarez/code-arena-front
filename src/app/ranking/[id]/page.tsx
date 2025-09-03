@@ -20,6 +20,7 @@ import {
   Zap,
   Target,
   Clock,
+  Award,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiRequest } from "@/lib/api"
@@ -40,6 +41,110 @@ type Rank = {
   isLastSolver: boolean; // Si fue el último equipo en resolver
 };
 
+const achievements = {
+  "💡-mente-brillante": {
+    icon: "💡",
+    name: "Mente brillante",
+    description: "Resolvieron con genialidad, iluminando el camino."
+  },
+  "🐢-pero-seguro": {
+    icon: "🐢",
+    name: "Pero seguro",
+    description: "Lento pero constante, llegaron a la meta."
+  },
+  "🔥-modo-fuego": {
+    icon: "🔥",
+    name: "Modo fuego",
+    description: "En racha imparable, no hay quien los detenga."
+  },
+  "🧠-cerebros-en-acción": {
+    icon: "🧠",
+    name: "Cerebros en acción",
+    description: "Pensaron fuera de la caja y lo lograron."
+  },
+  "🎯-tiro-perfecto": {
+    icon: "🎯",
+    name: "Tiro perfecto",
+    description: "Envío sin errores, precisión total."
+  },
+  "🕵️-detectives-del-bug": {
+    icon: "🕵️",
+    name: "Detectives del bug",
+    description: "Encontraron el fallo oculto como verdaderos sabuesos."
+  },
+  "🚀-despegue-explosivo": {
+    icon: "🚀",
+    name: "Despegue explosivo",
+    description: "Fueron los primeros en resolver, ¡boom!"
+  },
+  "🍕-code-y-comida": {
+    icon: "🍕",
+    name: "Code y comida",
+    description: "Codificaron sin soltar la pizza, puro flow."
+  },
+  "🧃-hidratados-y-eficientes": {
+    icon: "🧃",
+    name: "Hidratados y eficientes",
+    description: "No olvidaron el juguito, energía al 100."
+  },
+  "🛠️-debuggers-pro": {
+    icon: "🛠️",
+    name: "Debuggers pro",
+    description: "Arreglaron lo imposible, nivel leyenda."
+  },
+  "😎-nivel-jefe": {
+    icon: "😎",
+    name: "Nivel jefe",
+    description: "Actitud de campeón, estilo imparable."
+  },
+  "🧘-zen-coders": {
+    icon: "🧘",
+    name: "Zen coders",
+    description: "Serenidad bajo presión, puro equilibrio."
+  },
+  "🎉-fiesta-de-submissions": {
+    icon: "🎉",
+    name: "Fiesta de submissions",
+    description: "Enviaron como locos, ¡qué ritmo!"
+  },
+  "🦾-sin-miedo-al-hard": {
+    icon: "🦾",
+    name: "Sin miedo al hard",
+    description: "Se enfrentaron al reto más difícil sin titubear."
+  },
+  "📈-subiendo-como-la-espuma": {
+    icon: "📈",
+    name: "Subiendo como la espuma",
+    description: "Mejora constante, siempre hacia arriba."
+  },
+  "🧩-rompecabezas-resuelto": {
+    icon: "🧩",
+    name: "Rompecabezas resuelto",
+    description: "Problema complejo dominado con maestría."
+  },
+  "👑-reyes-del-ranking": {
+    icon: "👑",
+    name: "Reyes del ranking",
+    description: "Lideraron la tabla, ¡coronados!"
+  },
+  "💪-no-se-rinden": {
+    icon: "💪",
+    name: "No se rinden",
+    description: "Persistencia total, nunca se detienen."
+  },
+  "🧤-sin-mancharse": {
+    icon: "🧤",
+    name: "Sin mancharse",
+    description: "Cero penalizaciones, juego limpio."
+  },
+  "🎭-drama-y-gloria": {
+    icon: "🎭",
+    name: "Drama y gloria",
+    description: "¡Qué jornada! Emoción en cada línea."
+  }
+}
+
+
 interface ResposeCompetition{
   title: string
   teams: number
@@ -59,25 +164,28 @@ export default function RankingPage({ params }: { params: Promise<{ id: string }
   const [presentationMode, setPresentationMode] = useState(false)
   const [highlightLastSolve, setHighlightLastSolve] = useState(true)
   const [lastSolveAnimation, setLastSolveAnimation] = useState<number | null>(null)
-
-  async function fetchCompetitionRanking(competitionId: string) {
-    try {
-      const response = await apiRequest(`/ranking/${competitionId}`, {
-        method: "GET",
-        token: true
-      });
-
-      setRankData(response.ranking); // Devuelve la lista de equipos
-      setResComp(response.competition)
-    } catch (err) {
-      console.error("❌ Error al cargar el ranking:", err);
-      return [];
-    }
-  }
+  const [reload, setReload] = useState(Boolean)
 
   useEffect(()=>{
+    async function fetchCompetitionRanking(competitionId: string) {
+      try {
+        const response = await apiRequest(`/ranking/${competitionId}`, {
+          method: "GET",
+          token: true
+        });
+
+        console.log(RanksData)
+        console.log(response.ranking)
+        setRankData(response.ranking); // Devuelve la lista de equipos
+        setResComp(response.competition)
+      } catch (err) {
+        console.error("❌ Error al cargar el ranking:", err);
+        return [];
+      }
+    }
+
     fetchCompetitionRanking(idCom)
-  })
+  }, [reload])
 
   // Simulate real-time updates
   useEffect(() => {
@@ -147,7 +255,7 @@ export default function RankingPage({ params }: { params: Promise<{ id: string }
                   <Button
                     variant={viewMode === "individual" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => fetchCompetitionRanking(idCom)}
+                    onClick={() => setReload(!reload)}
                     className={viewMode === "individual" ? "bg-accent hover:bg-accent/90" : ""}
                   >
                     <User className="mr-2 h-4 w-4" />
@@ -238,7 +346,7 @@ export default function RankingPage({ params }: { params: Promise<{ id: string }
                     <Zap className="h-5 w-5 text-yellow-500 animate-pulse" />
                     <div>
                       <p className="text-sm text-muted-foreground">Creado con pasión por</p>
-                      <p className="text-base font-semibold text-primary">ComputerSociety ⚙️</p>
+                      <p className="text-base font-semibold text-primary">ComputerSociety⚙️</p>
                       <p className="text-xs text-muted-foreground italic">
                         Mao Suarez
                       </p>
@@ -314,7 +422,7 @@ export default function RankingPage({ params }: { params: Promise<{ id: string }
                       </div>
 
                       {/* Achievements */}
-                      {/*showMedals && item.achievements && item.achievements.length > 0 && (
+                      {showMedals && item.achievements && item.achievements.length > 0 && (
                         <div className="flex items-center gap-2">
                           {item.achievements.map((achievement) => (
                             <Badge
@@ -330,7 +438,7 @@ export default function RankingPage({ params }: { params: Promise<{ id: string }
                             </Badge>
                           ))}
                         </div>
-                      )*/}
+                      )}
                       
                     </div>
 
@@ -378,7 +486,7 @@ export default function RankingPage({ params }: { params: Promise<{ id: string }
       </div>
 
       {/* Achievement Legends */}
-      {/*!presentationMode && showMedals && (
+      {!presentationMode && showMedals && (
         <div className="container mx-auto px-4 pb-6">
           <Card>
             <CardHeader>
@@ -402,7 +510,7 @@ export default function RankingPage({ params }: { params: Promise<{ id: string }
             </CardContent>
           </Card>
         </div>
-      )*/}
+      )}
     </div>
   )
 }
