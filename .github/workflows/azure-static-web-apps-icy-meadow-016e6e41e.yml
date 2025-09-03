@@ -22,8 +22,11 @@ jobs:
           echo "NEXT_PUBLIC_VALIDATION_PASSWORD=${{ secrets.NEXT_PUBLIC_VALIDATION_PASSWORD }}" >> .env
 
       - name: Build Docker image
-        run: docker build . -t ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/code-arena:latest
-
+        run: docker build \
+          --build-arg NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }} \
+          --build-arg NEXT_PUBLIC_VALIDATION_PASSWORD=${{ secrets.NEXT_PUBLIC_VALIDATION_PASSWORD }} \
+          -t ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/code-arena:latest .
+          
       - name: Push Docker image
         run: docker push ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/code-arena:latest
 
