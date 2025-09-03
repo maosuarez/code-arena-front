@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import { Competition } from "@/lib/types"
 import { useTeamCode } from "@/hooks/useTeamCode"
 import { apiRequest } from "@/lib/api"
+import Link from "next/link"
 
 export default function HomePage() {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
@@ -49,13 +50,14 @@ export default function HomePage() {
       }
 
       await apiRequest('/competition/join', {
-        method: 'DELETE',
+        method: 'POST',
         body: {
           teamCode: teamCode,
           competitionId: compet.id
         }
       })
       toast.info('Se te agrego a una Competencia')
+      window.location.reload()
     } catch (error) {
       console.error("Error al dejar el equipo:", error)
       // Puedes mostrar un toast o alerta aquí si quieres
@@ -100,18 +102,18 @@ export default function HomePage() {
     try {
       const response = await apiRequest("/competition/all", { method: "GET" })
 
-      if (!response || !Array.isArray(response)) {
+      if (!response.list || !Array.isArray(response.list)) {
         throw new Error("Respuesta inválida del servidor")
       }
 
-      setListCompetition(response)
+      setListCompetition(response.list)
     } catch{
       toast.error("Error al cargar competiciones")
     }
   }
 
   fetchCompetitions()
-}, [])
+  }, [])
 
 
 
@@ -388,22 +390,35 @@ export default function HomePage() {
                       <Eye className="mr-2 h-4 w-4" />
                       Ver Detalles
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleJoin(competition)}
-                      className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                    >
-                      <Play className="mr-2 h-4 w-4" />
-                      Unirme Ahora
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300"
-                    >
-                      <Settings className="mr-2 h-4 w-4" />
-                      Administrar
-                    </Button>
+                    {
+                      teamCode && competition.teams.includes(teamCode) ? (
+                        <div
+                          className="flex items-center justify-center size-sm bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 font-medium rounded-xl px-4 py-2 shadow-md"
+                        >
+                          Ya estás inscrito
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => handleJoin(competition)}
+                          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 rounded-xl px-4 py-2"
+                        >
+                          <Play className="mr-2 h-4 w-4" />
+                          Unirme Ahora
+                        </Button>
+                      )
+                    }
+
+                    <Link href={`/competition/${competition.id}`} passHref>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300"
+                      >
+                        <Settings className="mr-2 h-4 w-4" />
+                        Administrar
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>

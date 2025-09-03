@@ -123,7 +123,7 @@ export default function CreateCompetitionPage() {
       id: crypto.randomUUID(),
       title: newProblemTitle.trim(),
       difficulty: newProblemDifficulty,
-      leetcodeUrl: newProblemUrl.trim(),
+      url: newProblemUrl.trim(),
       slug,
       isValid: true,
       isValidating: false,
@@ -508,7 +508,7 @@ export default function CreateCompetitionPage() {
                                         <Button
                                           variant="outline"
                                           size="sm"
-                                          onClick={() => window.open(problem.leetcodeUrl, "_blank")}
+                                          onClick={() => window.open(problem.url, "_blank")}
                                         >
                                           <ExternalLink className="h-4 w-4" />
                                         </Button>

@@ -35,7 +35,8 @@ export function JoinTeamModal({ open, onOpenChange }: JoinTeamModalProps) {
     )
       // Puedes manejar la respuesta aquí si lo necesitas
       setTeamCode(response.teamCode)
-      localStorage.setItem('teamCode', response.team.teamCode)
+      localStorage.setItem('teamCode', response.teamCode)
+      window.location.reload()
     } catch (error) {
       console.error("Error al crear el equipo:", error)
       // Puedes mostrar un toast o alerta aquí si quieres

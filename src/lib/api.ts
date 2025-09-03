@@ -11,9 +11,16 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiRequest<T = any>(
   endpoint: string,
-  options: RequestOptions = {}
+  options: RequestOptions & { useForm?: boolean } = {}
 ): Promise<T> {
-  const { method = "GET", params, body, headers = {}, token = false } = options
+  const {
+    method = "GET",
+    params,
+    body,
+    headers = {},
+    token = false,
+    useForm = false, // 👈 Nuevo flag para usar FormData
+  } = options
 
   // Construir query string si hay params
   const query = params
@@ -27,12 +34,17 @@ export async function apiRequest<T = any>(
 
   console.log("URL final:", url)
 
-  // Incluir token si se solicita
+  // Construir headers
   const finalHeaders: HeadersInit = {
-    "Content-Type": "application/json",
     ...headers,
   }
 
+  // Si no es FormData, usar JSON por defecto
+  if (!useForm) {
+    finalHeaders["Content-Type"] = "application/json"
+  }
+
+  // Incluir token si se solicita
   if (token) {
     const storedToken = localStorage.getItem("token")
     if (storedToken) {
@@ -40,11 +52,25 @@ export async function apiRequest<T = any>(
     }
   }
 
+  // Construir body
+  let finalBody: BodyInit | undefined = undefined
+
+  if (method !== "GET") {
+    if (useForm) {
+      const formData = new FormData()
+      Object.entries(body || {}).forEach(([key, value]) => {
+        formData.append(key, value as string | Blob)
+      })
+      finalBody = formData
+    } else {
+      finalBody = JSON.stringify(body)
+    }
+  }
 
   const response = await fetch(url, {
     method,
     headers: finalHeaders,
-    body: method !== "GET" ? JSON.stringify(body) : undefined,
+    body: finalBody,
   })
 
   if (!response.ok) {

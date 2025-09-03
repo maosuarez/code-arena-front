@@ -55,8 +55,9 @@ export function CreateTeamModal({ open, onOpenChange }: CreateTeamModalProps) {
       })
 
       // Puedes manejar la respuesta aquí si lo necesitas
-      setTeamCode(response.team.teamCode)
-      localStorage.setItem('teamCode', response.team.teamCode)
+      setTeamCode(response.team.code)
+      localStorage.setItem('teamCode', response.team.code)
+      window.location.reload()
     } catch (error) {
       console.error("Error al crear el equipo:", error)
       // Puedes mostrar un toast o alerta aquí si quieres

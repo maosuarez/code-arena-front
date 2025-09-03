@@ -39,7 +39,8 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
     try {
       const response = await apiRequest('/auth/login', {
         method: 'POST',
-        body: payload
+        body: payload,
+        useForm: true
       })
       setIsAuthenticated(true)
       setToken(response.access_token)
@@ -50,6 +51,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
         localStorage.setItem('teamCode', response.teamCode)
         setTeamCode(response.teamCode)
       }
+      window.location.reload()
     } catch (error) {
       console.error("Error en login:", error);
     } finally {
@@ -79,6 +81,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
       setToken(response.access_token)
       localStorage.setItem('token', response.access_token)
       localStorage.setItem('auth', 'true')
+      window.location.reload()
     } catch (error) {
       console.error("Error en login:", error);
     } finally {

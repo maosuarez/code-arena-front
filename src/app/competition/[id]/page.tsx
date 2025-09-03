@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -25,7 +25,6 @@ import {
   Target,
   Award,
   MoreVertical,
-  Lightbulb,
   Flag,
   BookOpen,
   Minimize2,
@@ -36,11 +35,13 @@ import { toast } from "sonner"
 import Link from "next/link"
 import { Competition, Problem } from "@/lib/types"
 import { apiRequest } from "@/lib/api"
-import { useTeamCode } from "@/hooks/useTeamCode"
 import { Submission } from "@/lib/types"
-import Loading from "@/app/loading"
 
-export default function CompetitionPage({ params }: { params: { id: string } }) {
+export default function CompetitionPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params); // ✅ Desempaqueta la promesa
+  const idCom = resolvedParams?.id;
+
+
   const [timeLeft, setTimeLeft] = useState(60) // 1h 23m in seconds
   const [filteredProblems, setFilteredProblems] = useState<Problem[]>([])
   const [difficultyFilter, setDifficultyFilter] = useState("all")
@@ -51,76 +52,86 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
   const [compactMode, setCompactMode] = useState(false)
   const [competitionData, setCompetitionData] = useState<Competition>({} as Competition)
   const [problems, setProblems] = useState<Problem[]>([])
-  const [members, setMembers] = useState<{ id: string; name: string; LeetCode: string }[]>([])
+  const [members, setMembers] = useState<{ id: string; username: string; leetcode: string }[]>([])
+  const [teamPoints, setTeamPoints] = useState(0);
+  const [teamRanking, setTeamRanking] = useState(null);
+  const [totalTeams, setTotalTeams] = useState(0);
+  const [teamName, setTeamName] = useState("");
+  const [avatar, setAvatar] = useState("");
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const {teamCode} = useTeamCode()
 
   const [showDialog, setShowDialog] = useState(false);
   const [password, setPassword] = useState("");
   // const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null);
 
 
+  function getTimeRemaining(startDate: string, durationMinutes: number, now: Date = new Date()) {
+    const date = new Date(startDate)
+    const endDate = new Date(date.getTime() + durationMinutes * 60 * 1000)
+    const diffMs = endDate.getTime() - now.getTime()
+
+    if (diffMs <= 0) return 0
+
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+
+    return diffMinutes
+  }
+
+  function getEmojiForUser(username: string) {
+    const emojiFaces = ["😄", "😎", "🤓", "🧐", "😺", "👾", "🤖", "🐸", "🧠", "👽"];
+    const index = username.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % emojiFaces.length;
+    return emojiFaces[index];
+  }
+
 
   useEffect(() => {
-    const fetchCompetition = async () => {
-      try {
-        const response = await apiRequest(`/competition/${params.id}`, {
-          method: "GET",
-        })
+    let isMounted = true;
 
-        if (!response || !response.competition) {
-          throw new Error("Competición no encontrada o respuesta inválida")
+    const fetchCompetitionPrivate = async () => {
+      try {
+        const res = await apiRequest(`/competition/private/${idCom}`, {
+          method: "GET",
+          token: true, // Asegura que se incluya el token
+        });
+
+        const { competition, team } = res;
+
+        if (!competition) {
+          throw new Error("Competición no encontrada o respuesta inválida");
         }
 
-        const compet: Competition = response.competition
+        if (isMounted) {
+          setCompetitionData(competition);
+          setProblems(competition.problems || []);
+          setTimeLeft(getTimeRemaining(competition.date, competition.duration));
 
-        setCompetitionData(compet)
-        setProblems(compet.problems || [])
-
-        setTimeLeft(getTimeRemaining(compet.date, compet.duration))
-      } catch {
-        setError("No se pudo cargar la competición")
-        // Puedes disparar un toast aquí si usas react-hot-toast o sonner
+          const teamInfo = team?.team;
+          if (teamInfo) {
+            setMembers(teamInfo.members || []);
+            setSubmissions(teamInfo.submissions || []);
+            setTeamPoints(teamInfo.points || 0);
+            setTeamRanking(teamInfo.ranking || null);
+            setTotalTeams(teamInfo.totalTeams || 0);
+            setTeamName(teamInfo.name || "");
+            setAvatar(teamInfo.avatar || "")
+          }
+        }
+      } catch (error) {
+        console.error("Error al cargar competición privada:", error);
       } finally {
-        setLoading(false)
+        console.log("Cargado");
       }
+    };
 
-      try {
-        const response = await apiRequest(`/teams/${teamCode}`, {
-          method: "GET",
-          token: true
-        })
+    if (idCom) fetchCompetitionPrivate();
 
-        setMembers(response.members)
-        setSubmissions(response.team.submissions)
-
-      } catch  {
-        setError("No se pudo cargar el team")
-        // Puedes disparar un toast aquí si usas react-hot-toast o sonner
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    function getTimeRemaining(startDate: Date, durationMinutes: number, now: Date = new Date()) {
-      const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
-      const diffMs = endDate.getTime() - now.getTime()
-
-      if (diffMs <= 0) return 0
-
-      const diffMinutes = Math.floor(diffMs / (1000 * 60))
-
-      return diffMinutes
-    }
+    return () => {
+      isMounted = false;
+    };
+  }, [idCom]);
 
 
-    fetchCompetition()
-
-  }, [params.id, teamCode])
-
-  
 
   // Timer countdown
   useEffect(() => {
@@ -139,7 +150,7 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
     }
 
     if (hideCompleted) {
-      const submissionIds = submissions.map((s) => s.id);
+      const submissionIds = submissions.map((s) => s.problem);
       filtered = filtered.filter((p) => !submissionIds.includes(p.id || ''));
     }
 
@@ -163,34 +174,65 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
     return (elapsed / totalTime) * 100
   }
 
+  async function submitProblem(competitionId: string, problemId: string) {
+    try {
+      const response = await apiRequest(
+        `/competition/submission/${competitionId}/${problemId}`, {
+        method: "POST",
+        token: true
+      });
+
+      setSubmissions((prev) => [...prev, response.submission]);
+      window.location.reload()
+
+    } catch (error) {
+      console.error("❌ Error al enviar solución:", error);
+      return null;
+    }
+  }
+
   const handleProblemAction = (problemId: string, action: string) => {
     const problem = problems.find((p) => p.id === problemId)
     if (!problem) return
 
     switch (action) {
       case "open-leetcode":
-        window.open(problem.leetcodeUrl, "_blank")
+        window.open(problem.url, "_blank")
         break
       case "mark-in-progress":
         toast(`${problem.title} marcado como en curso`)
         break
       case "validate-ac":
-        toast( "Verificando tu envío en LeetCode")
-        // Simulate validation
-        setTimeout(() => {
-          toast( `+${competitionData.scoring[problem.difficulty]} puntos para tu equipo`)
-        }, 2000)
-        break
+        submitProblem(idCom, problem.id)
       case "request-hint":
         toast( "Se han descontado 5 puntos por la pista")
         break
     }
   }
 
-  const copyTeamLink = () => {
-    navigator.clipboard.writeText("https://codearena.com/team/FIRE-2024-ALGO")
-    toast("El enlace de invitación ha sido copiado al portapapeles")
+  const cheereTeam = () => {
+  const phrases = [
+    `🔥 ¡${teamName} va con toda, que tiemble el ranking!`,
+    `🚀 ¡A romperla equipo ${teamName}, que el algoritmo tiemble!`,
+    `🏆 ¡Vamos ${teamName}, que el podio ya huele a ustedes!`,
+    `💪 ¡Código limpio, mente afilada, victoria asegurada para ${teamName}!`,
+    `🎯 ¡Cada submission cuenta, cada punto acerca a ${teamName} al oro!`,
+    `🧠 ¡Inteligencia colectiva + pasión = ${teamName} imbatible!`,
+    `⚡ ¡Que se escuche fuerte: ${teamName} está encendido!`,
+    `📈 ¡Subiendo como el rendimiento de las queries de ${teamName}!`,
+    `🛠️ ¡Compilando victorias, debuggeando rivales: ${teamName} style!`,
+    `🌟 ¡No es suerte, es preparación y trabajo en equipo: ${teamName}!`
+  ];
+
+  const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+  toast(randomPhrase);
+};
+
+  function getProblemTitleById(problemId: string): string {
+    const found = problems.find(p => p.id === problemId);
+    return found?.title || "Problema no encontrado";
   }
+
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -222,8 +264,6 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
         return <AlertCircle className="h-4 w-4 text-muted-foreground" />
     }
   }
-
-  if(error || loading) return <Loading/>
 
   return (
     <div className="min-h-screen bg-background">
@@ -347,33 +387,39 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
                         <ExternalLink className="mr-2 h-4 w-4" />
                         Abrir en LeetCode
                       </Button>
-                      {!submissions.filter(p => p.id == problem.id) && (
+                      {submissions.find(s => s.problem === problem.id) ? (
+                        <span className="text-green-600 font-semibold flex items-center">
+                          <CheckCircle className="mr-1 h-4 w-4" />
+                          Validado
+                        </span>
+                      ) : (
                         <Button
                           size="sm"
                           className="bg-accent hover:bg-accent/90"
-                          onClick={() => {
-                            setShowDialog(true);
-                          }}
+                          onClick={() => setShowDialog(true)}
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
                           Validar
                         </Button>
                       )}
+
                       {showDialog && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                          <div className="bg-white p-6 rounded shadow-lg w-[300px]">
-                            <h2 className="text-lg font-semibold mb-4">Ingresa tu contraseña</h2>
-                            <input
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                          <div className="bg-white dark:bg-neutral-900 p-6 rounded-xl shadow-2xl w-[320px] border border-neutral-200 dark:border-neutral-700">
+                            <h2 className="text-lg font-semibold mb-4 text-neutral-800 dark:text-neutral-100">
+                              Ingresa tu contraseña
+                            </h2>
+                            <Input
                               type="password"
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
-                              className="w-full border px-3 py-2 rounded mb-4"
+                              className="w-full border border-neutral-300 dark:border-neutral-600 px-3 py-2 rounded-md mb-4 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                               placeholder="Contraseña"
                             />
                             <div className="flex justify-end gap-2">
                               <Button
                                 size="sm"
-                                className="bg-gray-300 hover:bg-gray-400"
+                                className="bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-800 dark:text-neutral-100"
                                 onClick={() => {
                                   setShowDialog(false);
                                   setPassword("");
@@ -383,7 +429,7 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
                               </Button>
                               <Button
                                 size="sm"
-                                className="bg-accent hover:bg-accent/90"
+                                className="bg-accent hover:bg-accent/90 text-white"
                                 onClick={() => {
                                   const expectedPassword = process.env.NEXT_PUBLIC_VALIDATION_PASSWORD;
 
@@ -392,13 +438,12 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
                                     return;
                                   }
 
-                                  // ✅ Ejecutar acción solo si la contraseña es válida
-                                  handleProblemAction(problem.id || '', "validate-ac");
-
+                                  handleProblemAction(problem.id || "", "validate-ac");
                                   setShowDialog(false);
                                   setPassword("");
                                 }}
                               >
+                                <CheckCircle className="mr-2 h-4 w-4" />
                                 Validar
                               </Button>
                             </div>
@@ -406,10 +451,6 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
                         </div>
                       )}
 
-                      <Button size="sm" variant="ghost" onClick={() => handleProblemAction(problem.id || '', "request-hint")}>
-                        <Lightbulb className="mr-2 h-4 w-4" />
-                        Pedir Pista (-5 pts)
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -424,20 +465,16 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Trophy className="h-5 w-5 text-yellow-500" />
-                  Marcador del Equipo
+                  Marcador de {avatar} {teamName}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-accent">40 pts</div>
-                    <p className="text-sm text-muted-foreground">Posición #3 de 15 equipos</p>
+                    <div className="text-3xl font-bold text-accent">{teamPoints} pts</div>
+                    <p className="text-sm text-muted-foreground">Posición #{teamRanking} de {totalTeams} equipos</p>
                   </div>
-                  <Progress value={65} className="w-full" />
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>1 problema resuelto</span>
-                    <span>Top 3</span>
-                  </div>
+                  <Progress value={(submissions.length/problems.length)*100} className="w-full" />
                 </div>
               </CardContent>
             </Card>
@@ -465,7 +502,7 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
                           }`}
                         />
                         <div className="flex-1">
-                          <p className="text-sm font-medium">{submission.problem}</p>
+                          <p className="text-sm font-medium">{getProblemTitleById(submission.problem)}</p>
                           <p className="text-xs text-muted-foreground">{submission.member}</p>
                         </div>
                         <div className="text-right">
@@ -541,18 +578,19 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
                   {members.map((member) => (
                     <div key={member.id} className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback>{member.name}</AvatarFallback>
+                        <AvatarFallback>{getEmojiForUser(member.username)}</AvatarFallback>
                       </Avatar>
+
                       <div className="flex-1">
-                        <p className="text-sm font-medium">{member.name}</p>
-                        <p className="text-xs text-muted-foreground">@{member.LeetCode}</p>
+                        <p className="text-sm font-medium">{member.username}</p>
+                        <p className="text-xs text-muted-foreground">@{member.leetcode}</p>
                       </div>
                     </div>
                   ))}
                   <Separator />
-                  <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={copyTeamLink}>
+                  <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={cheereTeam}>
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Invitar Miembro
+                    Animar Miembros
                   </Button>
                 </div>
               </CardContent>
@@ -571,7 +609,7 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem asChild>
-              <Link href={`/ranking/${params.id}`} className="flex items-center">
+              <Link href={`/ranking/${idCom}`} className="flex items-center">
                 <Award className="mr-2 h-4 w-4" />
                 Ver Ranking
               </Link>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -20,12 +20,12 @@ import {
   Zap,
   Target,
   Clock,
-  Award,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { apiRequest } from "@/lib/api"
 
 
-type Team = {
+type Rank = {
   id: number;
   name: string;
   avatar: string; // Emoji o URL
@@ -36,192 +36,54 @@ type Team = {
   totalTime: string; // Formato HH:MM:SS
   lastSolve: string; // Nombre del último problema resuelto
   lastSolveTime: string; // Tiempo en que se resolvió el último problema
-  penalties: number; // Penalizaciones acumuladas
   achievements: string[]; // Identificadores de logros
   isLastSolver: boolean; // Si fue el último equipo en resolver
 };
 
-// Mock data for teams
-const teamsData: Array<Team> = [
-  {
-    id: 1,
-    name: "Los Algoritmos Supremos",
-    avatar: "🚀",
-    color: "blue",
-    members: ["Ana García", "Carlos López", "María Rodríguez", "Luis Martín"],
-    points: 120,
-    solves: 4,
-    totalTime: "2:45:30",
-    lastSolve: "Container With Most Water",
-    lastSolveTime: "2:43:15",
-    penalties: 2,
-    achievements: ["first-blood", "speed-demon"],
-    isLastSolver: false,
-  },
-  {
-    id: 2,
-    name: "Code Warriors",
-    avatar: "⚡",
-    color: "red",
-    members: ["Pedro Sánchez", "Laura Jiménez", "Diego Torres"],
-    points: 110,
-    solves: 3,
-    totalTime: "2:12:45",
-    lastSolve: "Add Two Numbers",
-    lastSolveTime: "2:10:30",
-    penalties: 1,
-    achievements: ["consistent"],
-    isLastSolver: true,
-  },
-  {
-    id: 3,
-    name: "Binary Beasts",
-    avatar: "🔥",
-    color: "green",
-    members: ["Sofia Ruiz", "Miguel Ángel", "Carmen Vega", "Javier Moreno"],
-    points: 100,
-    solves: 3,
-    totalTime: "2:55:20",
-    lastSolve: "Two Sum",
-    lastSolveTime: "1:45:10",
-    penalties: 3,
-    achievements: ["hard-solver"],
-    isLastSolver: false,
-  },
-  {
-    id: 4,
-    name: "Recursive Rebels",
-    avatar: "💎",
-    color: "purple",
-    members: ["Elena Castro", "Roberto Silva"],
-    points: 90,
-    solves: 2,
-    totalTime: "1:58:35",
-    lastSolve: "Reverse Integer",
-    lastSolveTime: "1:55:20",
-    penalties: 0,
-    achievements: ["clean-code"],
-    isLastSolver: false,
-  },
-  {
-    id: 5,
-    name: "Stack Overflow",
-    avatar: "🎯",
-    color: "orange",
-    members: ["Andrés Morales", "Patricia Herrera", "Fernando Ruiz"],
-    points: 80,
-    solves: 2,
-    totalTime: "2:30:15",
-    lastSolve: "Longest Substring",
-    lastSolveTime: "2:28:45",
-    penalties: 4,
-    achievements: [],
-    isLastSolver: false,
-  },
-]
-
-type Participant = {
-  id: number;
-  name: string; // Nombre completo del participante
-  team: string; // Nombre del equipo al que pertenece
-  avatar: string; // Iniciales, emoji o identificador visual
-  points: number; // Puntos individuales acumulados
-  solves: number; // Problemas resueltos por el participante
-  totalTime: string; // Tiempo total invertido (HH:MM:SS)
-  lastSolve: string; // Último problema resuelto
-  lastSolveTime: string; // Tiempo en que se resolvió el último problema
-  achievements: string[]; // Logros individuales
-};
-
-
-// Mock data for individual ranking
-const individualsData: Array<Participant> = [
-  {
-    id: 1,
-    name: "Ana García",
-    team: "Los Algoritmos Supremos",
-    avatar: "AG",
-    points: 50,
-    solves: 2,
-    totalTime: "1:25:30",
-    lastSolve: "Container With Most Water",
-    lastSolveTime: "2:28:45",
-    achievements: ["first-blood"],
-  },
-  {
-    id: 2,
-    name: "Pedro Sánchez",
-    team: "Code Warriors",
-    avatar: "PS",
-    points: 45,
-    solves: 2,
-    totalTime: "1:12:45",
-    lastSolve: "Add Two Numbers",
-    lastSolveTime: "2:28:45",
-    achievements: ["speed-demon"],
-  },
-  {
-    id: 3,
-    name: "Sofia Ruiz",
-    team: "Binary Beasts",
-    avatar: "SR",
-    points: 40,
-    solves: 2,
-    totalTime: "1:55:20",
-    lastSolve: "Two Sum",
-    lastSolveTime: "2:28:45",
-    achievements: ["hard-solver"],
-  },
-  {
-    id: 4,
-    name: "Carlos López",
-    team: "Los Algoritmos Supremos",
-    avatar: "CL",
-    points: 35,
-    solves: 1,
-    totalTime: "0:45:15",
-    lastSolve: "Two Sum",
-    lastSolveTime: "2:28:45",
-    achievements: [],
-  },
-  {
-    id: 5,
-    name: "Laura Jiménez",
-    team: "Code Warriors",
-    avatar: "LJ",
-    points: 35,
-    solves: 1,
-    totalTime: "1:02:30",
-    lastSolve: "Reverse Integer",
-    lastSolveTime: "2:28:45",
-    achievements: ["consistent"],
-  },
-]
-
-const achievements = {
-  "first-blood": { name: "Primera Sangre", icon: "🩸", description: "Primer equipo en resolver un problema" },
-  "speed-demon": { name: "Demonio de Velocidad", icon: "⚡", description: "Resolución más rápida" },
-  "hard-solver": { name: "Domador de Difíciles", icon: "💪", description: "Mayor cantidad de problemas difíciles" },
-  consistent: { name: "Consistente", icon: "🎯", description: "Sin penalizaciones" },
-  "clean-code": { name: "Código Limpio", icon: "✨", description: "Sin intentos fallidos" },
+interface ResposeCompetition{
+  title: string
+  teams: number
+  totalSolved: number
+  resTime: string
 }
 
-export default function RankingPage({ params }: { params: { id: string } }) {
+export default function RankingPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params); // ✅ Desempaqueta la promesa
+  const idCom = resolvedParams?.id;
 
-  console.log(params)
-
-  const [viewMode, setViewMode] = useState<"teams" | "individual">("teams")
+  const [RanksData, setRankData] = useState<Rank[]>([])
+  const [resComp, setResComp] = useState<ResposeCompetition>()
+  const [viewMode, setViewMode] = useState<"Ranks" | "individual">("Ranks")
   const [showMedals, setShowMedals] = useState(true)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [presentationMode, setPresentationMode] = useState(false)
   const [highlightLastSolve, setHighlightLastSolve] = useState(true)
   const [lastSolveAnimation, setLastSolveAnimation] = useState<number | null>(null)
 
+  async function fetchCompetitionRanking(competitionId: string) {
+    try {
+      const response = await apiRequest(`/ranking/${competitionId}`, {
+        method: "GET",
+        token: true
+      });
+
+      setRankData(response.ranking); // Devuelve la lista de equipos
+      setResComp(response.competition)
+    } catch (err) {
+      console.error("❌ Error al cargar el ranking:", err);
+      return [];
+    }
+  }
+
+  useEffect(()=>{
+    fetchCompetitionRanking(idCom)
+  })
+
   // Simulate real-time updates
   useEffect(() => {
     const interval = setInterval(() => {
       if (highlightLastSolve) {
-        const lastSolver = teamsData.find((team) => team.isLastSolver)
+        const lastSolver = RanksData.find((Rank) => Rank.isLastSolver)
         if (lastSolver) {
           setLastSolveAnimation(lastSolver.id)
           setTimeout(() => setLastSolveAnimation(null), 3000)
@@ -245,7 +107,7 @@ export default function RankingPage({ params }: { params: { id: string } }) {
     }
   }
 
-  const getTeamColorClass = (color: string) => {
+  const getRankColorClass = (color: string) => {
     const colors = {
       blue: "border-l-blue-500 bg-blue-50 dark:bg-blue-950",
       red: "border-l-red-500 bg-red-50 dark:bg-red-950",
@@ -256,7 +118,7 @@ export default function RankingPage({ params }: { params: { id: string } }) {
     return colors[color as keyof typeof colors] || "border-l-gray-500 bg-gray-50 dark:bg-gray-950"
   }
 
-  const currentData = viewMode === "teams" ? teamsData : individualsData
+  const currentData = RanksData 
 
   return (
     <div className={cn("min-h-screen bg-background", presentationMode && "p-0")}>
@@ -267,16 +129,17 @@ export default function RankingPage({ params }: { params: { id: string } }) {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold">Ranking en Tiempo Real</h1>
-                <p className="text-muted-foreground">Torneo Semanal - Algoritmos Básicos</p>
+                <p className="text-muted-foreground">{resComp?.title}</p>
               </div>
               <div className="flex items-center gap-4">
                 {/* View Mode Toggle */}
                 <div className="flex items-center gap-2">
                   <Button
-                    variant={viewMode === "teams" ? "default" : "outline"}
+                    variant={viewMode === "Ranks" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setViewMode("teams")}
-                    className={viewMode === "teams" ? "bg-accent hover:bg-accent/90" : ""}
+                    onClick={() => setViewMode("Ranks")}
+                    className={viewMode === "Ranks" ? "bg-accent hover:bg-accent/90" : ""}
+                    disabled
                   >
                     <Users className="mr-2 h-4 w-4" />
                     Equipos
@@ -284,11 +147,11 @@ export default function RankingPage({ params }: { params: { id: string } }) {
                   <Button
                     variant={viewMode === "individual" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setViewMode("individual")}
+                    onClick={() => fetchCompetitionRanking(idCom)}
                     className={viewMode === "individual" ? "bg-accent hover:bg-accent/90" : ""}
                   >
                     <User className="mr-2 h-4 w-4" />
-                    Individual
+                    Actualizar
                   </Button>
                 </div>
 
@@ -342,7 +205,7 @@ export default function RankingPage({ params }: { params: { id: string } }) {
                     <Trophy className="h-5 w-5 text-yellow-500" />
                     <div>
                       <p className="text-sm text-muted-foreground">Equipos Activos</p>
-                      <p className="text-2xl font-bold">15</p>
+                      <p className="text-2xl font-bold">{resComp?.teams}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -353,7 +216,7 @@ export default function RankingPage({ params }: { params: { id: string } }) {
                     <Target className="h-5 w-5 text-accent" />
                     <div>
                       <p className="text-sm text-muted-foreground">Problemas Resueltos</p>
-                      <p className="text-2xl font-bold">42</p>
+                      <p className="text-2xl font-bold">{resComp?.totalSolved}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -364,22 +227,25 @@ export default function RankingPage({ params }: { params: { id: string } }) {
                     <Clock className="h-5 w-5 text-blue-500" />
                     <div>
                       <p className="text-sm text-muted-foreground">Tiempo Restante</p>
-                      <p className="text-2xl font-bold">1:23:45</p>
+                      <p className="text-2xl font-bold">{resComp?.resTime}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-green-500" />
+                  <div className="flex items-center gap-3">
+                    <Zap className="h-5 w-5 text-yellow-500 animate-pulse" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Último Solve</p>
-                      <p className="text-sm font-medium">Code Warriors</p>
-                      <p className="text-xs text-muted-foreground">hace 2 min</p>
+                      <p className="text-sm text-muted-foreground">Creado con pasión por</p>
+                      <p className="text-base font-semibold text-primary">ComputerSociety ⚙️</p>
+                      <p className="text-xs text-muted-foreground italic">
+                        Mao Suarez
+                      </p>
                     </div>
                   </div>
                 </CardContent>
+
               </Card>
             </div>
           )}
@@ -388,7 +254,7 @@ export default function RankingPage({ params }: { params: { id: string } }) {
           <div className="space-y-3">
             {currentData.map((item, index) => {
               const position = index + 1
-              const isTeam = viewMode === "teams"
+              const isRank = viewMode === "Ranks"
               const isHighlighted = highlightLastSolve && lastSolveAnimation === item.id
 
               return (
@@ -396,36 +262,31 @@ export default function RankingPage({ params }: { params: { id: string } }) {
                   key={item.id}
                   className={cn(
                     "transition-all duration-500 border-l-4",
-                    isTeam ? getTeamColorClass((item as Team).color) : "border-l-accent bg-accent/5",
+                    isRank ? getRankColorClass((item as Rank).color) : "border-l-accent bg-accent/5",
                     isHighlighted && "animate-pulse ring-2 ring-accent shadow-lg scale-[1.02]",
                     presentationMode && "text-lg",
                   )}
                 >
                   <CardContent className={cn("p-4", presentationMode && "p-6")}>
                     <div className="flex items-center justify-between">
-                      {/* Rank and Team/User Info */}
+                      {/* Rank and Rank/User Info */}
                       <div className="flex items-center gap-4">
                         <div className="flex items-center justify-center w-12 h-12">{getRankIcon(position)}</div>
 
                         <div className="flex items-center gap-3">
                           <div className={cn("text-2xl", presentationMode && "text-4xl")}>
-                            {isTeam ? (item as Team | Participant).avatar : ""}
+                            {isRank ? (item as Rank).avatar : ""}
                           </div>
-                          {!isTeam && (
+                          {!isRank && (
                             <Avatar className={cn("h-10 w-10", presentationMode && "h-12 w-12")}>
-                              <AvatarFallback>{(item as Team | Participant).avatar}</AvatarFallback>
+                              <AvatarFallback>{(item as Rank).avatar}</AvatarFallback>
                             </Avatar>
                           )}
                           <div>
                             <h3 className={cn("font-semibold", presentationMode && "text-xl")}>{item.name}</h3>
-                            {!isTeam && (
+                            {isRank && (
                               <p className={cn("text-sm text-muted-foreground", presentationMode && "text-base")}>
-                                {(item as Participant).team}
-                              </p>
-                            )}
-                            {isTeam && (
-                              <p className={cn("text-sm text-muted-foreground", presentationMode && "text-base")}>
-                                {(item as Team).members.length} miembros
+                                {(item as Rank).members.length} miembros
                               </p>
                             )}
                           </div>
@@ -450,20 +311,10 @@ export default function RankingPage({ params }: { params: { id: string } }) {
                           <p className={cn("text-sm font-mono", presentationMode && "text-base")}>{item.totalTime}</p>
                           <p className={cn("text-xs text-muted-foreground", presentationMode && "text-sm")}>tiempo</p>
                         </div>
-                        {isTeam && (item as Team).penalties > 0 && (
-                          <div className="text-center">
-                            <p className={cn("text-sm text-red-500", presentationMode && "text-base")}>
-                              +{(item as Team).penalties}
-                            </p>
-                            <p className={cn("text-xs text-muted-foreground", presentationMode && "text-sm")}>
-                              penalizaciones
-                            </p>
-                          </div>
-                        )}
                       </div>
 
                       {/* Achievements */}
-                      {showMedals && item.achievements && item.achievements.length > 0 && (
+                      {/*showMedals && item.achievements && item.achievements.length > 0 && (
                         <div className="flex items-center gap-2">
                           {item.achievements.map((achievement) => (
                             <Badge
@@ -479,7 +330,8 @@ export default function RankingPage({ params }: { params: { id: string } }) {
                             </Badge>
                           ))}
                         </div>
-                      )}
+                      )*/}
+                      
                     </div>
 
                     {/* Last Solve Info */}
@@ -526,7 +378,7 @@ export default function RankingPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Achievement Legends */}
-      {!presentationMode && showMedals && (
+      {/*!presentationMode && showMedals && (
         <div className="container mx-auto px-4 pb-6">
           <Card>
             <CardHeader>
@@ -550,7 +402,7 @@ export default function RankingPage({ params }: { params: { id: string } }) {
             </CardContent>
           </Card>
         </div>
-      )}
+      )*/}
     </div>
   )
 }

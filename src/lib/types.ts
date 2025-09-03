@@ -50,7 +50,7 @@ export interface Problem {
   id: string
   title: string
   difficulty: "easy" | "medium" | "hard"
-  leetcodeUrl: string
+  url: string
   slug: string
   isValid: boolean
   isValidating: boolean

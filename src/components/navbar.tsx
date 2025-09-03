@@ -7,6 +7,8 @@ import { useTheme } from "next-themes"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 import { useAuth } from "@/hooks/useAuth"
+import { useToken } from "@/hooks/useToken"
+import { useTeamCode } from "@/hooks/useTeamCode"
 
 interface NavbarProps {
   onLoginClick?: () => void
@@ -14,8 +16,20 @@ interface NavbarProps {
 
 export function Navbar({ onLoginClick }: NavbarProps) {
   const { setTheme } = useTheme()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, setIsAuthenticated } = useAuth()
+  const { setToken } = useToken()
+  const { setTeamCode } = useTeamCode()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  const logout = () => {
+                    localStorage.removeItem("token") // 🔥 Eliminar token
+                    setToken('')
+                    localStorage.removeItem('auth')
+                    setIsAuthenticated(false)
+                    localStorage.removeItem('teamCode')
+                    setTeamCode('')
+                    window.location.reload()         // 🔄 Refrescar para reiniciar estado
+                  }
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-sm">
@@ -79,25 +93,36 @@ export function Navbar({ onLoginClick }: NavbarProps) {
 
             {/* Auth Buttons */}
             {
-              !isAuthenticated &&
-              <div>
+              !isAuthenticated ? (
+                <div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onLoginClick}
+                    className="hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105 transition-all duration-300 rounded-xl px-4"
+                  >
+                    Iniciar sesión
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 rounded-xl px-4"
+                    onClick={onLoginClick}
+                  >
+                    Registrarse
+                  </Button>
+                </div>
+              ) : (
                 <Button
-                variant="ghost"
-                size="sm"
-                onClick={onLoginClick}
-                className="hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105 transition-all duration-300 rounded-xl px-4"
-              >
-                Iniciar sesión
-              </Button>
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 rounded-xl px-4"
-                onClick={onLoginClick}
-              >
-                Registrarse
-              </Button>
-              </div>
+                  size="sm"
+                  variant="outline"
+                  className="hover:bg-red-100 dark:hover:bg-red-800 hover:scale-105 transition-all duration-300 rounded-xl px-4 text-red-600 border-red-600"
+                  onClick={logout}
+                >
+                  Cerrar sesión
+                </Button>
+              )
             }
+
           </div>
 
           {/* Mobile Menu Button */}
@@ -130,24 +155,35 @@ export function Navbar({ onLoginClick }: NavbarProps) {
           <div className="py-4 space-y-3 animate-in slide-in-from-top-2">
             {/* Auth Buttons */}
 
+            {/* Auth Buttons (Mobile) */}
             {
-              !isAuthenticated &&
-              <div>
-              <Button
-              variant="ghost"
-              className="w-full justify-start hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.02] transition-all duration-300 rounded-xl"
-              onClick={onLoginClick}
-            >
-              Iniciar sesión
-            </Button>
-            <Button
-              className="w-full justify-start bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 rounded-xl"
-              onClick={onLoginClick}
-            >
-              Registrarse
-            </Button>
-            </div>
+              !isAuthenticated ? (
+                <div>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.02] transition-all duration-300 rounded-xl"
+                    onClick={onLoginClick}
+                  >
+                    Iniciar sesión
+                  </Button>
+                  <Button
+                    className="w-full justify-start bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 rounded-xl"
+                    onClick={onLoginClick}
+                  >
+                    Registrarse
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-red-600 hover:bg-red-100 dark:hover:bg-red-800 hover:scale-[1.02] transition-all duration-300 rounded-xl"
+                  onClick={logout}
+                >
+                  Cerrar sesión
+                </Button>
+              )
             }
+
             <div className="flex items-center justify-between pt-3 border-t border-border/40">
               <span className="text-sm text-muted-foreground font-medium">Tema</span>
               <DropdownMenu>
