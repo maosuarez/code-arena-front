@@ -58,6 +58,7 @@ export default function CompetitionPage({ params }: { params: Promise<{ id: stri
   const [totalTeams, setTotalTeams] = useState(0);
   const [teamName, setTeamName] = useState("");
   const [avatar, setAvatar] = useState("");
+  const [idsaving, setIdSaving] = useState('')
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
 
@@ -174,10 +175,10 @@ export default function CompetitionPage({ params }: { params: Promise<{ id: stri
     return (elapsed / totalTime) * 100
   }
 
-  async function submitProblem(competitionId: string, problemId: string) {
+  async function submitProblem(competitionId: string) {
     try {
       const response = await apiRequest(
-        `/competition/submission/${competitionId}/${problemId}`, {
+        `/competition/submission/${competitionId}/${idsaving}`, {
         method: "POST",
         token: true
       });
@@ -203,7 +204,8 @@ export default function CompetitionPage({ params }: { params: Promise<{ id: stri
         toast(`${problem.title} marcado como en curso`)
         break
       case "validate-ac":
-        submitProblem(idCom, problem.id)
+        console.log(problem.id)
+        submitProblem(idCom)
       case "request-hint":
         toast( "Se han descontado 5 puntos por la pista")
         break
@@ -396,7 +398,10 @@ export default function CompetitionPage({ params }: { params: Promise<{ id: stri
                         <Button
                           size="sm"
                           className="bg-accent hover:bg-accent/90"
-                          onClick={() => setShowDialog(true)}
+                          onClick={() => {
+                            setShowDialog(true)
+                            setIdSaving(problem.id)
+                          }}
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
                           Validar
@@ -491,7 +496,7 @@ export default function CompetitionPage({ params }: { params: Promise<{ id: stri
                 <ScrollArea className="h-32">
                   <div className="space-y-2">
                     {submissions.map((submission) => (
-                      <div key={submission.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
+                      <div key={`submission${submission.id}`} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
                         <div
                           className={`w-2 h-2 rounded-full ${
                             submission.status === "AC"
