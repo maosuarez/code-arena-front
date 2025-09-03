@@ -37,7 +37,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
     };
 
     try {
-      const response = await apiRequest('/users/login', {
+      const response = await apiRequest('/auth/login', {
         method: 'POST',
         body: payload
       })

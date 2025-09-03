@@ -25,6 +25,8 @@ export async function apiRequest<T = any>(
 
   const url = `${BASE_URL}${endpoint}${query}`
 
+  console.log('Preguntando a ', url)
+
   // Incluir token si se solicita
   const finalHeaders: HeadersInit = {
     "Content-Type": "application/json",
