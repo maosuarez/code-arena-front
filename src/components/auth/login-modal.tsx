@@ -67,7 +67,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
     const payload = {
       email: formData.get("email"),
       password: formData.get("password"),
-      name: formData.get('name')
+      username: formData.get('username')
     };
 
     try {
@@ -117,6 +117,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     className="pl-10 pr-10"
@@ -149,14 +150,14 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
                 <Label htmlFor="name">Nombre completo</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input id="name" type="text" placeholder="Tu nombre" className="pl-10" required />
+                  <Input id="name" name="username" type="text" placeholder="Tu nombre" className="pl-10" required />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="register-email">Correo electrónico</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input id="register-email" type="email" placeholder="tu@email.com" className="pl-10" required />
+                  <Input id="register-email" name="email" type="email" placeholder="tu@email.com" className="pl-10" required />
                 </div>
               </div>
               <div className="space-y-2">
@@ -165,6 +166,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="register-password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     className="pl-10 pr-10"
